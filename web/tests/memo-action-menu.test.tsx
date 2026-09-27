@@ -1,7 +1,9 @@
 import { create } from "@bufbuild/protobuf";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import MemoActionMenu from "@/components/MemoActionMenu";
+import { AppSidebarProvider, useAppSidebar } from "@/contexts/AppSidebarContext";
 import { State } from "@/types/proto/api/v1/common_pb";
 import { MemoSchema } from "@/types/proto/api/v1/memo_service_pb";
 
@@ -128,5 +130,46 @@ describe("MemoActionMenu", () => {
     await waitFor(() => expect(trigger).toHaveAttribute("aria-expanded", "true"));
     expect(trigger).toHaveAttribute("data-popup-open");
     expect(await screen.findByRole("menuitem", { name: "common.pin" })).toBeInTheDocument();
+  });
+
+  it("omits the reference graph outside the app shell, where there is nowhere to open it", async () => {
+    render(<MemoActionMenu memo={create(MemoSchema, { name: "memos/1", state: State.NORMAL })} />);
+    fireEvent.click(screen.getByRole("button", { name: "common.more" }));
+
+    expect(await screen.findByRole("menuitem", { name: "common.edit" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "graph.title" })).not.toBeInTheDocument();
+  });
+
+  it("hands the memo to the reference graph inside the app shell", async () => {
+    const GraphProbe = () => {
+      const { referenceGraphMemo } = useAppSidebar();
+      return <output data-testid="graph-root">{referenceGraphMemo ?? "none"}</output>;
+    };
+    render(
+      <MemoryRouter>
+        <AppSidebarProvider>
+          <GraphProbe />
+          <MemoActionMenu memo={create(MemoSchema, { name: "memos/1", state: State.NORMAL })} />
+        </AppSidebarProvider>
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "common.more" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "graph.title" }));
+
+    await waitFor(() => expect(screen.getByTestId("graph-root").textContent).toBe("memos/1"));
+  });
+
+  it("does not offer a reference graph on a comment, which belongs to exactly one memo", async () => {
+    render(
+      <MemoryRouter>
+        <AppSidebarProvider>
+          <MemoActionMenu memo={create(MemoSchema, { name: "memos/2", parent: "memos/1", state: State.NORMAL })} />
+        </AppSidebarProvider>
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "common.more" }));
+
+    expect(await screen.findByRole("menuitem", { name: "common.edit" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "graph.title" })).not.toBeInTheDocument();
   });
 });

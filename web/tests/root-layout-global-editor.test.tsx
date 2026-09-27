@@ -25,6 +25,10 @@ vi.mock("@/components/DailyReview", () => ({
   DailyReviewDialog: () => null,
 }));
 
+vi.mock("@/components/ReferenceGraph", () => ({
+  ReferenceGraphDialog: () => null,
+}));
+
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({ isUserSettingsInitialized: true }),
 }));

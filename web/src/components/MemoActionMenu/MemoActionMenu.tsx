@@ -13,6 +13,7 @@ import {
   ListRestartIcon,
   MoreHorizontalIcon,
   MoreVerticalIcon,
+  NetworkIcon,
   TrashIcon,
 } from "lucide-react";
 import { useState } from "react";
@@ -28,6 +29,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useOptionalAppSidebar } from "@/contexts/AppSidebarContext";
 import { State } from "@/types/proto/api/v1/common_pb";
 import { useTranslate } from "@/utils/i18n";
 import { useMemoActionHandlers } from "./hooks";
@@ -37,6 +39,7 @@ import type { MemoActionMenuProps } from "./types";
 const MemoActionMenu = (props: MemoActionMenuProps) => {
   const { memo, readonly } = props;
   const t = useTranslate();
+  const appSidebar = useOptionalAppSidebar();
 
   // Dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -87,6 +90,16 @@ const MemoActionMenu = (props: MemoActionMenuProps) => {
               {t("common.edit")}
             </DropdownMenuItem>
           </>
+        )}
+
+        {/* The reference graph is about how a thought connects to others, which
+            a comment never does: a comment belongs to exactly one memo. The
+            graph lives in the app shell, so it is offered only inside it. */}
+        {!isComment && appSidebar && (
+          <DropdownMenuItem onClick={() => appSidebar.setReferenceGraphMemo(memo.name)}>
+            <NetworkIcon />
+            {t("graph.title")}
+          </DropdownMenuItem>
         )}
 
         {/* Copy submenu (non-archived) */}

@@ -37,6 +37,9 @@ interface AppSidebarContextValue {
   setQuickFindOpen: (open: boolean) => void;
   dailyReviewOpen: boolean;
   setDailyReviewOpen: (open: boolean) => void;
+  /** The memo whose reference graph is on screen, if any. */
+  referenceGraphMemo: string | undefined;
+  setReferenceGraphMemo: (memoName?: string) => void;
   memoScope: PrimaryMemoScope;
   setMemoScope: (scope: PrimaryMemoScope) => void;
 }
@@ -53,6 +56,7 @@ export const AppSidebarProvider = ({ children }: { children: ReactNode }) => {
   const scheduledMobileCloseActionFrameRef = useRef<number | undefined>(undefined);
   const [quickFindOpen, setQuickFindOpen] = useState(false);
   const [dailyReviewOpen, setDailyReviewOpen] = useState(false);
+  const [referenceGraphMemo, setReferenceGraphMemo] = useState<string>();
   const [memoScope, setMemoScope] = useState<PrimaryMemoScope>("home");
 
   useEffect(() => {
@@ -121,6 +125,8 @@ export const AppSidebarProvider = ({ children }: { children: ReactNode }) => {
       setQuickFindOpen,
       dailyReviewOpen,
       setDailyReviewOpen,
+      referenceGraphMemo,
+      setReferenceGraphMemo,
       memoScope,
       setMemoScope,
     }),
@@ -134,12 +140,21 @@ export const AppSidebarProvider = ({ children }: { children: ReactNode }) => {
       completeMobileClose,
       quickFindOpen,
       dailyReviewOpen,
+      referenceGraphMemo,
       memoScope,
     ],
   );
 
   return <AppSidebarContext.Provider value={value}>{children}</AppSidebarContext.Provider>;
 };
+
+/**
+ * The app shell's sidebar state, or null outside it. Lets a component that is
+ * also rendered on its own — a memo card in isolation, say — offer the shell's
+ * affordances when they exist and simply omit them when they do not, instead of
+ * making every such caller responsible for mounting the provider.
+ */
+export const useOptionalAppSidebar = () => useContext(AppSidebarContext);
 
 export const useAppSidebar = () => {
   const context = useContext(AppSidebarContext);
