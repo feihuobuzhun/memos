@@ -1,5 +1,5 @@
 import { ArrowUpRightIcon, LoaderCircleIcon, MinusIcon, PlusIcon } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -37,14 +37,45 @@ const ReferenceGraphContent = ({ rootName, onClose }: { rootName: string; onClos
   const [depth, setDepth] = useState(DEFAULT_DEPTH);
   // Where the reader came from, so following a card outward is reversible.
   const [trail, setTrail] = useState<string[]>([rootName]);
+  const [nodeHeights, setNodeHeights] = useState<Record<string, number>>({});
+  const cardElements = useRef(new Map<string, HTMLDivElement>());
   const current = trail[trail.length - 1];
 
   useEffect(() => setTrail([rootName]), [rootName]);
 
   const { data, isLoading, error } = useReferenceGraph(current, direction, depth);
   const nodes = useMemo(() => data?.nodes ?? [], [data]);
-  const layout = useMemo(() => layoutReferenceGraph(nodes, data?.edges ?? [], direction), [nodes, data, direction]);
+  const nodesWithHeights = useMemo(() => nodes.map((node) => ({ ...node, height: nodeHeights[node.name] })), [nodes, nodeHeights]);
+  const layout = useMemo(() => layoutReferenceGraph(nodesWithHeights, data?.edges ?? [], direction), [nodesWithHeights, data, direction]);
   const nodeByName = useMemo(() => new Map(nodes.map((node) => [node.name, node])), [nodes]);
+
+  const measureCard = useCallback((name: string, element: HTMLDivElement) => {
+    const height = Math.ceil(element.getBoundingClientRect().height);
+    if (height <= 0) return;
+    setNodeHeights((previous) => (previous[name] === height ? previous : { ...previous, [name]: height }));
+  }, []);
+
+  // Text, translated dates and loaded fonts can all change a card's natural
+  // height. Feed the real dimensions back into the graph before drawing its
+  // rows and connection endpoints.
+  useLayoutEffect(() => {
+    const names = new Set(nodes.map((node) => node.name));
+    for (const [name, element] of cardElements.current) {
+      if (names.has(name)) measureCard(name, element);
+    }
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const element = entry.target as HTMLDivElement;
+        const name = element.dataset.nodeName;
+        if (name) measureCard(name, element);
+      }
+    });
+    for (const [name, element] of cardElements.current) {
+      if (names.has(name)) observer.observe(element);
+    }
+    return () => observer.disconnect();
+  }, [measureCard, nodes]);
 
   const openMemo = (name: string) => {
     onClose();
@@ -66,7 +97,9 @@ const ReferenceGraphContent = ({ rootName, onClose }: { rootName: string; onClos
           <div className="flex shrink-0 items-center gap-2">
             <Select value={String(direction)} onValueChange={(value) => setDirection(Number(value))}>
               <SelectTrigger className="w-36" aria-label={t("graph.direction")}>
-                <SelectValue />
+                <SelectValue>
+                  {t(DIRECTION_OPTIONS.find((option) => option.value === direction)?.labelKey ?? "graph.direction")}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {DIRECTION_OPTIONS.map((option) => (
@@ -142,11 +175,21 @@ const ReferenceGraphContent = ({ rootName, onClose }: { rootName: string; onClos
                     <div
                       key={positioned.name}
                       className="absolute"
-                      style={{ left: positioned.x, top: positioned.y, width: GRAPH_NODE_WIDTH, height: GRAPH_NODE_HEIGHT }}
+                      style={{ left: positioned.x, top: positioned.y, width: GRAPH_NODE_WIDTH }}
                     >
                       <div
+                        ref={(element) => {
+                          if (element) {
+                            cardElements.current.set(positioned.name, element);
+                            measureCard(positioned.name, element);
+                          } else {
+                            cardElements.current.delete(positioned.name);
+                          }
+                        }}
+                        data-node-name={positioned.name}
+                        style={{ minHeight: GRAPH_NODE_HEIGHT }}
                         className={cn(
-                          "flex h-full flex-col justify-between rounded-lg border bg-card p-2.5 text-start shadow-xs transition-colors",
+                          "flex flex-col justify-between gap-2 rounded-lg border bg-card p-2.5 text-start shadow-xs transition-colors",
                           isRoot ? "border-primary" : "hover:border-primary/60",
                         )}
                       >
@@ -156,8 +199,7 @@ const ReferenceGraphContent = ({ rootName, onClose }: { rootName: string; onClos
                           // the only way to see past the requested depth.
                           onClick={() => setTrail((entries) => [...entries, positioned.name])}
                           disabled={isRoot}
-                          className="line-clamp-3 min-w-0 text-start text-sm leading-snug disabled:cursor-default"
-                          title={node.snippet}
+                          className="min-w-0 break-words whitespace-pre-wrap text-start text-sm leading-snug disabled:cursor-default"
                         >
                           {node.snippet || t("graph.empty-memo")}
                         </button>

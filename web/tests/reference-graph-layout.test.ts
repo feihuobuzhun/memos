@@ -42,6 +42,24 @@ describe("layoutReferenceGraph", () => {
     expect(layout.height).toBe(4 * ROW_STRIDE - GRAPH_ROW_GAP);
   });
 
+  it("uses measured card heights so long content cannot overlap another row", () => {
+    const tallHeight = 180;
+    const layout = layoutReferenceGraph(
+      [node("a", 0), { ...node("b", 1), height: tallHeight }, node("c", 1)],
+      [edge("a", "b"), edge("a", "c")],
+      OUTGOING,
+    );
+    const root = positionOf(layout, "a");
+    const tall = positionOf(layout, "b");
+    const short = positionOf(layout, "c");
+
+    expect(tall?.height).toBe(tallHeight);
+    expect(short?.y).toBe(tallHeight + GRAPH_ROW_GAP + (tallHeight - GRAPH_NODE_HEIGHT) / 2);
+    expect((tall?.y ?? 0) + (tall?.height ?? 0) + GRAPH_ROW_GAP).toBeLessThanOrEqual(short?.y ?? 0);
+    expect(root?.y).toBe((tallHeight + GRAPH_ROW_GAP) / 2 + (tallHeight - GRAPH_NODE_HEIGHT) / 2);
+    expect(layout.height).toBe(2 * (tallHeight + GRAPH_ROW_GAP) - GRAPH_ROW_GAP);
+  });
+
   it("draws every edge, marking the ones that placed their target", () => {
     const layout = layoutReferenceGraph(fanOut.nodes, fanOut.edges, OUTGOING);
 
