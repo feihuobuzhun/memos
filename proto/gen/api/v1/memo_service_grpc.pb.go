@@ -39,6 +39,7 @@ const (
 	MemoService_DeleteMemoShare_FullMethodName      = "/memos.api.v1.MemoService/DeleteMemoShare"
 	MemoService_GetSharedMemo_FullMethodName        = "/memos.api.v1.MemoService/GetSharedMemo"
 	MemoService_GetLinkMetadata_FullMethodName      = "/memos.api.v1.MemoService/GetLinkMetadata"
+	MemoService_ListReviewMemos_FullMethodName      = "/memos.api.v1.MemoService/ListReviewMemos"
 	MemoService_BatchGetLinkMetadata_FullMethodName = "/memos.api.v1.MemoService/BatchGetLinkMetadata"
 )
 
@@ -95,6 +96,10 @@ type MemoServiceClient interface {
 	GetSharedMemo(ctx context.Context, in *GetSharedMemoRequest, opts ...grpc.CallOption) (*Memo, error)
 	// GetLinkMetadata gets metadata for a link.
 	GetLinkMetadata(ctx context.Context, in *GetLinkMetadataRequest, opts ...grpc.CallOption) (*LinkMetadata, error)
+	// ListReviewMemos returns the authenticated user's daily review selection:
+	// a sample of their own memos, drawn from the memos their review setting
+	// makes eligible. The selection is stable for one local day.
+	ListReviewMemos(ctx context.Context, in *ListReviewMemosRequest, opts ...grpc.CallOption) (*ListReviewMemosResponse, error)
 	// BatchGetLinkMetadata gets metadata for links.
 	BatchGetLinkMetadata(ctx context.Context, in *BatchGetLinkMetadataRequest, opts ...grpc.CallOption) (*BatchGetLinkMetadataResponse, error)
 }
@@ -297,6 +302,16 @@ func (c *memoServiceClient) GetLinkMetadata(ctx context.Context, in *GetLinkMeta
 	return out, nil
 }
 
+func (c *memoServiceClient) ListReviewMemos(ctx context.Context, in *ListReviewMemosRequest, opts ...grpc.CallOption) (*ListReviewMemosResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListReviewMemosResponse)
+	err := c.cc.Invoke(ctx, MemoService_ListReviewMemos_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *memoServiceClient) BatchGetLinkMetadata(ctx context.Context, in *BatchGetLinkMetadataRequest, opts ...grpc.CallOption) (*BatchGetLinkMetadataResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(BatchGetLinkMetadataResponse)
@@ -360,6 +375,10 @@ type MemoServiceServer interface {
 	GetSharedMemo(context.Context, *GetSharedMemoRequest) (*Memo, error)
 	// GetLinkMetadata gets metadata for a link.
 	GetLinkMetadata(context.Context, *GetLinkMetadataRequest) (*LinkMetadata, error)
+	// ListReviewMemos returns the authenticated user's daily review selection:
+	// a sample of their own memos, drawn from the memos their review setting
+	// makes eligible. The selection is stable for one local day.
+	ListReviewMemos(context.Context, *ListReviewMemosRequest) (*ListReviewMemosResponse, error)
 	// BatchGetLinkMetadata gets metadata for links.
 	BatchGetLinkMetadata(context.Context, *BatchGetLinkMetadataRequest) (*BatchGetLinkMetadataResponse, error)
 	mustEmbedUnimplementedMemoServiceServer()
@@ -428,6 +447,9 @@ func (UnimplementedMemoServiceServer) GetSharedMemo(context.Context, *GetSharedM
 }
 func (UnimplementedMemoServiceServer) GetLinkMetadata(context.Context, *GetLinkMetadataRequest) (*LinkMetadata, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetLinkMetadata not implemented")
+}
+func (UnimplementedMemoServiceServer) ListReviewMemos(context.Context, *ListReviewMemosRequest) (*ListReviewMemosResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListReviewMemos not implemented")
 }
 func (UnimplementedMemoServiceServer) BatchGetLinkMetadata(context.Context, *BatchGetLinkMetadataRequest) (*BatchGetLinkMetadataResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method BatchGetLinkMetadata not implemented")
@@ -795,6 +817,24 @@ func _MemoService_GetLinkMetadata_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MemoService_ListReviewMemos_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListReviewMemosRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MemoServiceServer).ListReviewMemos(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MemoService_ListReviewMemos_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MemoServiceServer).ListReviewMemos(ctx, req.(*ListReviewMemosRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _MemoService_BatchGetLinkMetadata_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(BatchGetLinkMetadataRequest)
 	if err := dec(in); err != nil {
@@ -895,6 +935,10 @@ var MemoService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetLinkMetadata",
 			Handler:    _MemoService_GetLinkMetadata_Handler,
+		},
+		{
+			MethodName: "ListReviewMemos",
+			Handler:    _MemoService_ListReviewMemos_Handler,
 		},
 		{
 			MethodName: "BatchGetLinkMetadata",

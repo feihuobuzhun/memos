@@ -46,6 +46,7 @@ const MemoEditorImpl: React.FC<MemoEditorProps> = ({
   suggestions = [],
   defaultSpace,
   defaultLocation,
+  defaultContent,
   autoFocus,
   onFocusModeExit,
   onFocusModeChange,
@@ -104,6 +105,7 @@ const MemoEditorImpl: React.FC<MemoEditorProps> = ({
     defaultVisibility,
     defaultCreateTime,
     defaultLocation,
+    defaultContent,
   });
   const isDraftCacheEnabled = !memo;
 

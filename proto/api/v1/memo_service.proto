@@ -140,6 +140,12 @@ service MemoService {
   rpc GetLinkMetadata(GetLinkMetadataRequest) returns (LinkMetadata) {
     option (google.api.http) = {get: "/api/v1/memos/-/linkMetadata"};
   }
+  // ListReviewMemos returns the authenticated user's daily review selection:
+  // a sample of their own memos, drawn from the memos their review setting
+  // makes eligible. The selection is stable for one local day.
+  rpc ListReviewMemos(ListReviewMemosRequest) returns (ListReviewMemosResponse) {
+    option (google.api.http) = {get: "/api/v1/memos/-/review"};
+  }
   // BatchGetLinkMetadata gets metadata for links.
   rpc BatchGetLinkMetadata(BatchGetLinkMetadataRequest) returns (BatchGetLinkMetadataResponse) {
     option (google.api.http) = {
@@ -355,7 +361,8 @@ message ListMemosRequest {
   //     supports == and comparisons against null, e.g. space != null),
   //   tags (list<string>; match with `"work" in tags`, not `tag == "work"`),
   //   has_task_list / has_link / has_code / has_incomplete_tasks (bool),
-  //   has_location (bool; true when the memo has a location attached).
+  //   has_location (bool; true when the memo has a location attached),
+  //   has_assistant (bool; true when an AI assistant wrote the memo).
   // Note: the time fields here are created_ts / updated_ts, which differ from
   // the create_time / update_time names used by order_by.
   // Examples:
@@ -659,6 +666,24 @@ message GetSharedMemoRequest {
 message GetLinkMetadataRequest {
   // Required. The link URL.
   string url = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+message ListReviewMemosRequest {
+  // Required. The caller's current local date as "YYYY-MM-DD". The review is a
+  // fixed set for one day, and "one day" has to be the caller's day rather than
+  // the server's, or the set would roll over mid-afternoon for some time zones.
+  string local_date = 1 [(google.api.field_behavior) = REQUIRED];
+}
+
+message ListReviewMemosResponse {
+  // The memos to review today, in the order they should be shown. Fewer than
+  // the configured count when the review setting matches fewer memos.
+  repeated Memo memos = 1;
+
+  // How many of the caller's memos the review setting makes eligible, which is
+  // usually far more than the day's selection. Zero means the setting matches
+  // nothing, which reads very differently from "you have no memos".
+  int32 eligible_count = 2;
 }
 
 message BatchGetLinkMetadataRequest {

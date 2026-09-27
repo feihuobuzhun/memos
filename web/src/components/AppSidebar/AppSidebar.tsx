@@ -8,6 +8,7 @@ import {
   EarthIcon,
   FileAudioIcon,
   FileTextIcon,
+  HistoryIcon,
   HouseIcon,
   ImageIcon,
   InfoIcon,
@@ -110,7 +111,7 @@ const CollectionSidebarContent = ({
   const currentUser = useCurrentUser();
   const { memoFilter, selectedSpaceName } = useSpaceContext();
   const md = useMediaQuery("md");
-  const { mobileOpen, setMobileOpen } = useAppSidebar();
+  const { mobileOpen, setMobileOpen, closeMobileThen, setDailyReviewOpen } = useAppSidebar();
   const { isInitialized: authInitialized, userTagsSetting } = useAuth();
   const { isInitialized: instanceInitialized } = useInstance();
   const profileUsername = getProfileUsername(location.pathname);
@@ -143,6 +144,12 @@ const CollectionSidebarContent = ({
       {showStatistics && (
         <SidebarSection ariaLabel={t("common.statistics")}>
           <StatisticsView statisticsData={statistics} onDateSelect={() => setMobileOpen(false)} />
+        </SidebarSection>
+      )}
+      {/* The daily review draws from the reader's own memos, so it is offered only to them. */}
+      {currentUser && (
+        <SidebarSection>
+          <SidebarRow icon={HistoryIcon} label={t("review.title")} onClick={() => closeMobileThen(() => setDailyReviewOpen(true))} />
         </SidebarSection>
       )}
       {/* Every collection route narrows the same way: views (yours, so signed-in only), days, tags. */}

@@ -86,6 +86,9 @@ const (
 	// MemoServiceGetLinkMetadataProcedure is the fully-qualified name of the MemoService's
 	// GetLinkMetadata RPC.
 	MemoServiceGetLinkMetadataProcedure = "/memos.api.v1.MemoService/GetLinkMetadata"
+	// MemoServiceListReviewMemosProcedure is the fully-qualified name of the MemoService's
+	// ListReviewMemos RPC.
+	MemoServiceListReviewMemosProcedure = "/memos.api.v1.MemoService/ListReviewMemos"
 	// MemoServiceBatchGetLinkMetadataProcedure is the fully-qualified name of the MemoService's
 	// BatchGetLinkMetadata RPC.
 	MemoServiceBatchGetLinkMetadataProcedure = "/memos.api.v1.MemoService/BatchGetLinkMetadata"
@@ -142,6 +145,10 @@ type MemoServiceClient interface {
 	GetSharedMemo(context.Context, *connect.Request[v1.GetSharedMemoRequest]) (*connect.Response[v1.Memo], error)
 	// GetLinkMetadata gets metadata for a link.
 	GetLinkMetadata(context.Context, *connect.Request[v1.GetLinkMetadataRequest]) (*connect.Response[v1.LinkMetadata], error)
+	// ListReviewMemos returns the authenticated user's daily review selection:
+	// a sample of their own memos, drawn from the memos their review setting
+	// makes eligible. The selection is stable for one local day.
+	ListReviewMemos(context.Context, *connect.Request[v1.ListReviewMemosRequest]) (*connect.Response[v1.ListReviewMemosResponse], error)
 	// BatchGetLinkMetadata gets metadata for links.
 	BatchGetLinkMetadata(context.Context, *connect.Request[v1.BatchGetLinkMetadataRequest]) (*connect.Response[v1.BatchGetLinkMetadataResponse], error)
 }
@@ -271,6 +278,12 @@ func NewMemoServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(memoServiceMethods.ByName("GetLinkMetadata")),
 			connect.WithClientOptions(opts...),
 		),
+		listReviewMemos: connect.NewClient[v1.ListReviewMemosRequest, v1.ListReviewMemosResponse](
+			httpClient,
+			baseURL+MemoServiceListReviewMemosProcedure,
+			connect.WithSchema(memoServiceMethods.ByName("ListReviewMemos")),
+			connect.WithClientOptions(opts...),
+		),
 		batchGetLinkMetadata: connect.NewClient[v1.BatchGetLinkMetadataRequest, v1.BatchGetLinkMetadataResponse](
 			httpClient,
 			baseURL+MemoServiceBatchGetLinkMetadataProcedure,
@@ -301,6 +314,7 @@ type memoServiceClient struct {
 	deleteMemoShare      *connect.Client[v1.DeleteMemoShareRequest, emptypb.Empty]
 	getSharedMemo        *connect.Client[v1.GetSharedMemoRequest, v1.Memo]
 	getLinkMetadata      *connect.Client[v1.GetLinkMetadataRequest, v1.LinkMetadata]
+	listReviewMemos      *connect.Client[v1.ListReviewMemosRequest, v1.ListReviewMemosResponse]
 	batchGetLinkMetadata *connect.Client[v1.BatchGetLinkMetadataRequest, v1.BatchGetLinkMetadataResponse]
 }
 
@@ -399,6 +413,11 @@ func (c *memoServiceClient) GetLinkMetadata(ctx context.Context, req *connect.Re
 	return c.getLinkMetadata.CallUnary(ctx, req)
 }
 
+// ListReviewMemos calls memos.api.v1.MemoService.ListReviewMemos.
+func (c *memoServiceClient) ListReviewMemos(ctx context.Context, req *connect.Request[v1.ListReviewMemosRequest]) (*connect.Response[v1.ListReviewMemosResponse], error) {
+	return c.listReviewMemos.CallUnary(ctx, req)
+}
+
 // BatchGetLinkMetadata calls memos.api.v1.MemoService.BatchGetLinkMetadata.
 func (c *memoServiceClient) BatchGetLinkMetadata(ctx context.Context, req *connect.Request[v1.BatchGetLinkMetadataRequest]) (*connect.Response[v1.BatchGetLinkMetadataResponse], error) {
 	return c.batchGetLinkMetadata.CallUnary(ctx, req)
@@ -455,6 +474,10 @@ type MemoServiceHandler interface {
 	GetSharedMemo(context.Context, *connect.Request[v1.GetSharedMemoRequest]) (*connect.Response[v1.Memo], error)
 	// GetLinkMetadata gets metadata for a link.
 	GetLinkMetadata(context.Context, *connect.Request[v1.GetLinkMetadataRequest]) (*connect.Response[v1.LinkMetadata], error)
+	// ListReviewMemos returns the authenticated user's daily review selection:
+	// a sample of their own memos, drawn from the memos their review setting
+	// makes eligible. The selection is stable for one local day.
+	ListReviewMemos(context.Context, *connect.Request[v1.ListReviewMemosRequest]) (*connect.Response[v1.ListReviewMemosResponse], error)
 	// BatchGetLinkMetadata gets metadata for links.
 	BatchGetLinkMetadata(context.Context, *connect.Request[v1.BatchGetLinkMetadataRequest]) (*connect.Response[v1.BatchGetLinkMetadataResponse], error)
 }
@@ -580,6 +603,12 @@ func NewMemoServiceHandler(svc MemoServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(memoServiceMethods.ByName("GetLinkMetadata")),
 		connect.WithHandlerOptions(opts...),
 	)
+	memoServiceListReviewMemosHandler := connect.NewUnaryHandler(
+		MemoServiceListReviewMemosProcedure,
+		svc.ListReviewMemos,
+		connect.WithSchema(memoServiceMethods.ByName("ListReviewMemos")),
+		connect.WithHandlerOptions(opts...),
+	)
 	memoServiceBatchGetLinkMetadataHandler := connect.NewUnaryHandler(
 		MemoServiceBatchGetLinkMetadataProcedure,
 		svc.BatchGetLinkMetadata,
@@ -626,6 +655,8 @@ func NewMemoServiceHandler(svc MemoServiceHandler, opts ...connect.HandlerOption
 			memoServiceGetSharedMemoHandler.ServeHTTP(w, r)
 		case MemoServiceGetLinkMetadataProcedure:
 			memoServiceGetLinkMetadataHandler.ServeHTTP(w, r)
+		case MemoServiceListReviewMemosProcedure:
+			memoServiceListReviewMemosHandler.ServeHTTP(w, r)
 		case MemoServiceBatchGetLinkMetadataProcedure:
 			memoServiceBatchGetLinkMetadataHandler.ServeHTTP(w, r)
 		default:
@@ -711,6 +742,10 @@ func (UnimplementedMemoServiceHandler) GetSharedMemo(context.Context, *connect.R
 
 func (UnimplementedMemoServiceHandler) GetLinkMetadata(context.Context, *connect.Request[v1.GetLinkMetadataRequest]) (*connect.Response[v1.LinkMetadata], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memos.api.v1.MemoService.GetLinkMetadata is not implemented"))
+}
+
+func (UnimplementedMemoServiceHandler) ListReviewMemos(context.Context, *connect.Request[v1.ListReviewMemosRequest]) (*connect.Response[v1.ListReviewMemosResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memos.api.v1.MemoService.ListReviewMemos is not implemented"))
 }
 
 func (UnimplementedMemoServiceHandler) BatchGetLinkMetadata(context.Context, *connect.Request[v1.BatchGetLinkMetadataRequest]) (*connect.Response[v1.BatchGetLinkMetadataResponse], error) {

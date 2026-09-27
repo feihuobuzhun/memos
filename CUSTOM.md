@@ -182,6 +182,40 @@ providers), `server/api/v1/memo_ai_assistant.go`,
 `web/src/components/Settings/AIAssistantSection.tsx`,
 `web/src/components/MemoView/components/MemoHeader.tsx`.
 
+### Daily review
+
+A fixed handful of your own memos, redrawn once a day, in the spirit of flomo's
+review. Opened from the sidebar; the scope is a per-user setting.
+
+- **Review condition** — all memos, only selected tags, everything except
+  selected tags, or only untagged memos. A tag condition with no tag is
+  rejected, because it would silently mean "everything".
+- **Time range** — all time, or the last 1/3/6/12 months.
+- **Memos per day** — how many cards the day's stack holds (default 16, max 50).
+- Archived and trashed memos never take part, and neither do memos an AI
+  assistant wrote. Your own annotations and your own comments do.
+- The draw is **seeded** by `<user id>:<local date>`, so the same day always
+  yields the same cards in the same order — reopening the dialog, or refetching
+  after writing an annotation, never reshuffles the stack.
+- **Annotating** a card creates an ordinary new top-level memo that *references*
+  the memo under review, using the same inline reference the editor's `@` picker
+  inserts. It is deliberately not a comment: a second reading is a thought of
+  its own that happens to be anchored, and it shows up in your timeline, in
+  search, and in the reviewed memo's backlinks. After saving you stay on the
+  same card.
+
+The AI-assistant exclusion is expressed as a new filter field, `has_assistant`,
+usable anywhere the memo filter CEL is accepted (`!has_assistant` means "not
+written by an assistant"). It tests for `payload.assistant`, the attribution
+added by the AI review feature.
+
+Files: `filter/schema.go`, `proto/store/user_setting.proto`,
+`proto/api/v1/user_service.proto`, `proto/api/v1/memo_service.proto`
+(`ListReviewMemos`), `server/api/v1/user_review_setting.go`,
+`server/api/v1/memo_service_review.go`, `server/api/v1/memo_service_hydrate.go`,
+`web/src/hooks/useReviewQueries.ts`, `web/src/lib/review-scope.ts`,
+`web/src/components/DailyReview/`.
+
 ## Development
 
 The backend needs Go (see `go.mod`) and the frontend needs Node and pnpm.

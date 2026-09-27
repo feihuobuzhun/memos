@@ -21,6 +21,10 @@ vi.mock("@/components/AppSidebar", () => ({
 // GlobalMemoEditorContext is deliberately NOT mocked: the real provider calls
 // useAppSidebar(), which throws unless RootLayout nests it inside
 // AppSidebarProvider. That nesting is the only thing here that can break.
+vi.mock("@/components/DailyReview", () => ({
+  DailyReviewDialog: () => null,
+}));
+
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({ isUserSettingsInitialized: true }),
 }));

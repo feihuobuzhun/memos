@@ -652,6 +652,12 @@ func convertUserSettingFromRaw(raw *UserSetting) (*storepb.UserSetting, error) {
 			return nil, errors.Wrap(err, "unmarshal tags user setting")
 		}
 		userSetting.Value = &storepb.UserSetting_Tags{Tags: tagsUserSetting}
+	case storepb.UserSetting_REVIEW:
+		reviewUserSetting := &storepb.ReviewUserSetting{}
+		if err := protojsonUnmarshaler.Unmarshal([]byte(raw.Value), reviewUserSetting); err != nil {
+			return nil, errors.Wrap(err, "unmarshal review user setting")
+		}
+		userSetting.Value = &storepb.UserSetting_Review{Review: reviewUserSetting}
 	case storepb.UserSetting_REFRESH_TOKENS:
 		refreshTokensUserSetting := &storepb.RefreshTokensUserSetting{}
 		if err := protojsonUnmarshaler.Unmarshal([]byte(raw.Value), refreshTokensUserSetting); err != nil {
@@ -702,6 +708,13 @@ func convertUserSettingToRaw(userSetting *storepb.UserSetting) (*UserSetting, er
 		value, err := protojson.Marshal(tagsUserSetting)
 		if err != nil {
 			return nil, errors.Wrap(err, "marshal tags user setting")
+		}
+		raw.Value = string(value)
+	case storepb.UserSetting_REVIEW:
+		reviewUserSetting := userSetting.GetReview()
+		value, err := protojson.Marshal(reviewUserSetting)
+		if err != nil {
+			return nil, errors.Wrap(err, "marshal review user setting")
 		}
 		raw.Value = string(value)
 	case storepb.UserSetting_REFRESH_TOKENS:
