@@ -109,6 +109,17 @@ describe("ReferenceGraphDialog", () => {
     expect(screen.getByLabelText("graph.has-more")).toBeTruthy();
   });
 
+  it("shows full card text in naturally sized cards and names the selected direction", async () => {
+    await openGraph();
+
+    const textButton = screen.getByText("card A").closest("button") as HTMLButtonElement;
+    const cardPositioner = textButton.parentElement?.parentElement as HTMLDivElement;
+    expect(textButton.className).not.toContain("line-clamp");
+    expect(cardPositioner.style.height).toBe("");
+    expect(screen.getByLabelText("graph.direction").textContent).toContain("graph.direction-outgoing");
+    expect(screen.getByLabelText("graph.direction").textContent).not.toContain("1");
+  });
+
   it("continues from a card the reader clicks, and back again", async () => {
     await openGraph();
     expect(lastCall().name).toBe("memos/a");

@@ -1,21 +1,18 @@
 import { GetMemoReferenceGraphRequest_Direction, type GetMemoReferenceGraphResponse_Edge } from "@/types/proto/api/v1/memo_service_pb";
 
-/**
- * Geometry of one card in the graph. Fixed rather than content-driven: a column
- * of cards that are all the same size reads as a level, and a level is the
- * whole point of the picture.
- */
+/** Horizontal geometry and the minimum height of one graph card. */
 export const GRAPH_NODE_WIDTH = 208;
 export const GRAPH_NODE_HEIGHT = 84;
 export const GRAPH_COLUMN_GAP = 72;
 export const GRAPH_ROW_GAP = 16;
 
 const COLUMN_STRIDE = GRAPH_NODE_WIDTH + GRAPH_COLUMN_GAP;
-const ROW_STRIDE = GRAPH_NODE_HEIGHT + GRAPH_ROW_GAP;
 
 export interface ReferenceGraphInputNode {
   name: string;
   depth: number;
+  /** Measured content height. Cards start at the minimum while it is unknown. */
+  height?: number;
 }
 
 export interface PositionedNode {
@@ -24,6 +21,7 @@ export interface PositionedNode {
   depth: number;
   x: number;
   y: number;
+  height: number;
 }
 
 export interface PositionedEdge {
@@ -82,6 +80,11 @@ export const layoutReferenceGraph = (
 
   const byName = new Map(nodes.map((node) => [node.name, node]));
   const root = nodes[0];
+  const nodeHeight = (node: ReferenceGraphInputNode) => Math.max(node.height ?? GRAPH_NODE_HEIGHT, GRAPH_NODE_HEIGHT);
+  // One shared row stride keeps parents centred on their descendants while
+  // guaranteeing that even the tallest measured cards cannot overlap.
+  const maxNodeHeight = Math.max(...nodes.map(nodeHeight));
+  const rowStride = maxNodeHeight + GRAPH_ROW_GAP;
 
   // Children in the order their parent's column was walked, so the picture is
   // stable across renders and matches the server's breadth-first order.
@@ -130,11 +133,13 @@ export const layoutReferenceGraph = (
   const positioned = new Map<string, PositionedNode>();
   for (const node of nodes) {
     const row = rows.get(node.name) ?? 0;
+    const height = nodeHeight(node);
     positioned.set(node.name, {
       name: node.name,
       depth: node.depth,
       x: node.depth * COLUMN_STRIDE,
-      y: row * ROW_STRIDE,
+      y: row * rowStride + (maxNodeHeight - height) / 2,
+      height,
     });
   }
 
@@ -156,7 +161,7 @@ export const layoutReferenceGraph = (
     nodes: nodes.map((node) => positioned.get(node.name) as PositionedNode),
     edges: laidOutEdges,
     width: maxDepth * COLUMN_STRIDE + GRAPH_NODE_WIDTH,
-    height: Math.max(nextRow, 1) * ROW_STRIDE - GRAPH_ROW_GAP,
+    height: Math.max(nextRow, 1) * rowStride - GRAPH_ROW_GAP,
   };
 };
 
@@ -170,8 +175,8 @@ const edgePath = (source: PositionedNode, target: PositionedNode): string => {
   const forward = target.x > source.x;
   const startX = forward ? source.x + GRAPH_NODE_WIDTH : source.x;
   const endX = forward ? target.x : target.x + GRAPH_NODE_WIDTH;
-  const startY = source.y + GRAPH_NODE_HEIGHT / 2;
-  const endY = target.y + GRAPH_NODE_HEIGHT / 2;
+  const startY = source.y + source.height / 2;
+  const endY = target.y + target.height / 2;
   const reach = forward ? Math.max((endX - startX) / 2, 24) : GRAPH_COLUMN_GAP / 2;
   const controlStartX = forward ? startX + reach : startX - reach;
   const controlEndX = forward ? endX - reach : endX + reach;
