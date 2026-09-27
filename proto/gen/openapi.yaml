@@ -700,7 +700,8 @@ paths:
                          supports == and comparisons against null, e.g. space != null),
                        tags (list<string>; match with `"work" in tags`, not `tag == "work"`),
                        has_task_list / has_link / has_code / has_incomplete_tasks (bool),
-                       has_location (bool; true when the memo has a location attached).
+                       has_location (bool; true when the memo has a location attached),
+                       has_assistant (bool; true when an AI assistant wrote the memo).
                      Note: the time fields here are created_ts / updated_ts, which differ from
                      the create_time / update_time names used by order_by.
                      Examples:
@@ -809,6 +810,37 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/BatchGetLinkMetadataResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /api/v1/memos/-/review:
+        get:
+            tags:
+                - MemoService
+            description: |-
+                ListReviewMemos returns the authenticated user's daily review selection:
+                 a sample of their own memos, drawn from the memos their review setting
+                 makes eligible. The selection is stable for one local day.
+            operationId: MemoService_ListReviewMemos
+            parameters:
+                - name: localDate
+                  in: query
+                  description: |-
+                    Required. The caller's current local date as "YYYY-MM-DD". The review is a
+                     fixed set for one day, and "one day" has to be the caller's day rather than
+                     the server's, or the set would roll over mid-afternoon for some time zones.
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ListReviewMemosResponse'
                 default:
                     description: Default error response
                     content:
@@ -4044,6 +4076,23 @@ components:
                 nextPageToken:
                     type: string
                     description: A token for the next page of results.
+        ListReviewMemosResponse:
+            type: object
+            properties:
+                memos:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/Memo'
+                    description: |-
+                        The memos to review today, in the order they should be shown. Fewer than
+                         the configured count when the review setting matches fewer memos.
+                eligibleCount:
+                    type: integer
+                    description: |-
+                        How many of the caller's memos the review setting makes eligible, which is
+                         usually far more than the day's selection. Zero means the setting matches
+                         nothing, which reads very differently from "you have no memos".
+                    format: int32
         ListSpaceInvitationsResponse:
             type: object
             properties:
@@ -5231,6 +5280,8 @@ components:
                     $ref: '#/components/schemas/UserSetting_WebhooksSetting'
                 tagsSetting:
                     $ref: '#/components/schemas/UserSetting_TagsSetting'
+                reviewSetting:
+                    $ref: '#/components/schemas/UserSetting_ReviewSetting'
             description: User settings message
         UserSetting_GeneralSetting:
             type: object
@@ -5251,6 +5302,44 @@ components:
                     type: boolean
                     description: Whether the official client should save metadata from future media uploads.
             description: General user settings configuration.
+        UserSetting_ReviewSetting:
+            type: object
+            properties:
+                condition:
+                    enum:
+                        - CONDITION_UNSPECIFIED
+                        - ALL_MEMOS
+                        - INCLUDE_TAGS
+                        - EXCLUDE_TAGS
+                        - UNTAGGED
+                    type: string
+                    description: Optional. Defaults to ALL_MEMOS.
+                    format: enum
+                tags:
+                    type: array
+                    items:
+                        type: string
+                    description: |-
+                        Optional. Required by INCLUDE_TAGS and EXCLUDE_TAGS, ignored otherwise.
+                         A leading "#" is accepted and normalized away.
+                timeRange:
+                    enum:
+                        - TIME_RANGE_UNSPECIFIED
+                        - ALL_TIME
+                        - LAST_MONTH
+                        - LAST_3_MONTHS
+                        - LAST_6_MONTHS
+                        - LAST_YEAR
+                    type: string
+                    description: Optional. Defaults to ALL_TIME.
+                    format: enum
+                dailyCount:
+                    type: integer
+                    description: Optional. How many memos one day's review contains. Defaults to 16.
+                    format: int32
+            description: |-
+                Daily review preferences: which of the user's own memos are eligible for
+                 review, and how many are surfaced each day.
         UserSetting_TagMetadata:
             type: object
             properties:
