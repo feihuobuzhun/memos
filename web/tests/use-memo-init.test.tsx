@@ -13,7 +13,15 @@ import { type Location, LocationSchema } from "@/types/proto/api/v1/memo_service
 const editorRef = { current: null } as RefObject<EditorController | null>;
 let getEditorState: ReturnType<typeof useEditorContext>["getState"];
 
-function Probe({ autoFocus, defaultLocation }: { autoFocus?: boolean | (() => boolean); defaultLocation?: Location }) {
+function Probe({
+  autoFocus,
+  defaultLocation,
+  defaultContent,
+}: {
+  autoFocus?: boolean | (() => boolean);
+  defaultLocation?: Location;
+  defaultContent?: string;
+}) {
   getEditorState = useEditorContext().getState;
   useMemoInit({
     editorRef,
@@ -21,6 +29,7 @@ function Probe({ autoFocus, defaultLocation }: { autoFocus?: boolean | (() => bo
     cacheKey: "restored-draft",
     autoFocus,
     defaultLocation,
+    defaultContent,
   });
   return null;
 }
@@ -109,5 +118,36 @@ describe("useMemoInit", () => {
       expect(getEditorState().content).toBe("![image](/file/attachments/image-one)");
       expect(getEditorState().metadata.attachments).toEqual([attachment]);
     });
+  });
+
+  it("seeds a new memo with default content and leaves the cursor above it", () => {
+    vi.useFakeTimers();
+    const setCursor = vi.fn();
+    editorRef.current = { focus: vi.fn(), setCursor } as unknown as EditorController;
+
+    render(
+      <EditorProvider>
+        <Probe defaultContent={"\n\n[Memos](/memos/abc)"} />
+      </EditorProvider>,
+    );
+
+    expect(getEditorState().content).toBe("\n\n[Memos](/memos/abc)");
+    act(() => vi.advanceTimersByTime(100));
+    // The author writes their own thought first, so the seeded reference trails it.
+    expect(setCursor).toHaveBeenCalledWith(0);
+  });
+
+  it("keeps a restored draft rather than overwriting it with default content", () => {
+    const key = cacheService.key("users/steven", "restored-draft");
+    cacheService.saveNow(key, "An unfinished annotation");
+    editorRef.current = { focus: vi.fn(), setCursor: vi.fn() } as unknown as EditorController;
+
+    render(
+      <EditorProvider>
+        <Probe defaultContent={"\n\n[Memos](/memos/abc)"} />
+      </EditorProvider>,
+    );
+
+    expect(getEditorState().content).toBe("An unfinished annotation");
   });
 });

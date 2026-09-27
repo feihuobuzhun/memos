@@ -13,6 +13,7 @@ interface UseMemoInitOptions {
   defaultVisibility?: Visibility;
   defaultCreateTime?: Date;
   defaultLocation?: Location;
+  defaultContent?: string;
 }
 
 export const useMemoInit = ({
@@ -24,6 +25,7 @@ export const useMemoInit = ({
   defaultVisibility,
   defaultCreateTime,
   defaultLocation,
+  defaultContent,
 }: UseMemoInitOptions) => {
   const { actions, dispatch } = useEditorContext();
   const initializedRef = useRef(false);
@@ -33,6 +35,7 @@ export const useMemoInit = ({
     if (initializedRef.current) return;
     initializedRef.current = true;
     const key = cacheService.key(username, cacheKey);
+    let seededContent = false;
 
     if (memo) {
       const initialState = memoService.fromMemo(memo);
@@ -42,6 +45,9 @@ export const useMemoInit = ({
       const cachedDraft = cacheService.loadDraft(key);
       if (cachedDraft.content) {
         dispatch(actions.setContent(cachedDraft.content));
+      } else if (defaultContent) {
+        dispatch(actions.setContent(defaultContent));
+        seededContent = true;
       }
       if (cachedDraft.attachments.length > 0) {
         dispatch(actions.setMetadata({ attachments: cachedDraft.attachments }));
@@ -55,7 +61,9 @@ export const useMemoInit = ({
       }
     }
 
-    const cachedCursor = cacheService.loadCursor(key);
+    // Seeded content belongs below the cursor, not after it: the author writes
+    // their own words first and the seeded reference trails them.
+    const cachedCursor = seededContent ? (cacheService.loadCursor(key) ?? 0) : cacheService.loadCursor(key);
     let restoreCursorTimer: ReturnType<typeof setTimeout> | undefined;
     if (autoFocus || cachedCursor !== undefined) {
       restoreCursorTimer = setTimeout(() => {
@@ -74,7 +82,19 @@ export const useMemoInit = ({
         clearTimeout(restoreCursorTimer);
       }
     };
-  }, [memo, cacheKey, username, autoFocus, defaultVisibility, defaultCreateTime, defaultLocation, actions, dispatch, editorRef]);
+  }, [
+    memo,
+    cacheKey,
+    username,
+    autoFocus,
+    defaultVisibility,
+    defaultCreateTime,
+    defaultLocation,
+    defaultContent,
+    actions,
+    dispatch,
+    editorRef,
+  ]);
 
   return { isInitialized };
 };

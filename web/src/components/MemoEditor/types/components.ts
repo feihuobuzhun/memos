@@ -18,6 +18,13 @@ export interface MemoEditorProps {
   defaultSpace?: string;
   /** Seeds a new memo once; restored draft metadata takes precedence. */
   defaultLocation?: Location;
+  /**
+   * Seeds the body of a *new* memo once, and places the cursor at the start so
+   * the author writes above what was seeded. A restored draft wins, so nothing
+   * half-written is ever overwritten. Used to open an annotation with a
+   * reference to the memo being annotated already in place.
+   */
+  defaultContent?: string;
   /** A callback can decide whether focus is still appropriate after draft restoration. */
   autoFocus?: boolean | (() => boolean);
   /**

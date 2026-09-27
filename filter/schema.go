@@ -254,6 +254,20 @@ func NewSchema() Schema {
 				CompareNeq: true,
 			},
 		},
+		// has_assistant reports whether the memo was written by an AI assistant
+		// rather than by the account it is stored under. Such a memo carries the
+		// attribution that names the assistant.
+		"has_assistant": {
+			Name:     "has_assistant",
+			Kind:     FieldKindJSONExists,
+			Type:     FieldTypeBool,
+			Column:   Column{Table: "memo", Name: "payload"},
+			JSONPath: []string{"assistant"},
+			AllowedComparisonOps: map[ComparisonOperator]bool{
+				CompareEq:  true,
+				CompareNeq: true,
+			},
+		},
 	}
 
 	envOptions := []cel.EnvOption{
@@ -273,6 +287,7 @@ func NewSchema() Schema {
 		cel.Variable("has_code", cel.BoolType),
 		cel.Variable("has_incomplete_tasks", cel.BoolType),
 		cel.Variable("has_location", cel.BoolType),
+		cel.Variable("has_assistant", cel.BoolType),
 		cel.Variable("now", cel.TimestampType),
 		ext.Sets(),
 		cel.ASTValidators(cel.ValidateRegexLiterals()),

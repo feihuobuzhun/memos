@@ -90,6 +90,8 @@ func convertSettingKeyToStore(key string) (storepb.UserSetting_Key, error) {
 		return storepb.UserSetting_WEBHOOKS, nil
 	case v1pb.UserSetting_Key_name[int32(v1pb.UserSetting_TAGS)]:
 		return storepb.UserSetting_TAGS, nil
+	case v1pb.UserSetting_Key_name[int32(v1pb.UserSetting_REVIEW)]:
+		return storepb.UserSetting_REVIEW, nil
 	default:
 		return storepb.UserSetting_KEY_UNSPECIFIED, errors.Errorf("unknown setting key: %s", key)
 	}
@@ -106,6 +108,8 @@ func convertSettingKeyFromStore(key storepb.UserSetting_Key) string {
 		return v1pb.UserSetting_Key_name[int32(v1pb.UserSetting_WEBHOOKS)]
 	case storepb.UserSetting_TAGS:
 		return v1pb.UserSetting_Key_name[int32(v1pb.UserSetting_TAGS)]
+	case storepb.UserSetting_REVIEW:
+		return v1pb.UserSetting_Key_name[int32(v1pb.UserSetting_REVIEW)]
 	default:
 		return "unknown"
 	}
@@ -173,6 +177,10 @@ func convertUserSettingFromStore(storeSetting *storepb.UserSetting, user *store.
 			setting.Value = &v1pb.UserSetting_TagsSetting_{
 				TagsSetting: &v1pb.UserSetting_TagsSetting{Tags: map[string]*v1pb.UserSetting_TagMetadata{}},
 			}
+		case storepb.UserSetting_REVIEW:
+			setting.Value = &v1pb.UserSetting_ReviewSetting_{
+				ReviewSetting: convertReviewSettingFromStore(nil),
+			}
 		default:
 			return nil
 		}
@@ -223,6 +231,10 @@ func convertUserSettingFromStore(storeSetting *storepb.UserSetting, user *store.
 	case storepb.UserSetting_TAGS:
 		setting.Value = &v1pb.UserSetting_TagsSetting_{
 			TagsSetting: convertUserTagsSettingFromStore(storeSetting.GetTags()),
+		}
+	case storepb.UserSetting_REVIEW:
+		setting.Value = &v1pb.UserSetting_ReviewSetting_{
+			ReviewSetting: convertReviewSettingFromStore(storeSetting.GetReview()),
 		}
 	default:
 		return nil
@@ -278,6 +290,14 @@ func convertUserSettingToStore(apiSetting *v1pb.UserSetting, userID int32, key s
 			}
 		} else {
 			return nil, errors.Errorf("tags setting is required")
+		}
+	case storepb.UserSetting_REVIEW:
+		if review := apiSetting.GetReviewSetting(); review != nil {
+			storeSetting.Value = &storepb.UserSetting_Review{
+				Review: convertReviewSettingToStore(review),
+			}
+		} else {
+			return nil, errors.Errorf("review setting is required")
 		}
 	default:
 		return nil, errors.Errorf("unsupported setting key: %v", key)

@@ -35,6 +35,8 @@ interface AppSidebarContextValue {
   completeMobileClose: (open: boolean) => void;
   quickFindOpen: boolean;
   setQuickFindOpen: (open: boolean) => void;
+  dailyReviewOpen: boolean;
+  setDailyReviewOpen: (open: boolean) => void;
   memoScope: PrimaryMemoScope;
   setMemoScope: (scope: PrimaryMemoScope) => void;
 }
@@ -50,6 +52,7 @@ export const AppSidebarProvider = ({ children }: { children: ReactNode }) => {
   const pendingMobileCloseActionRef = useRef<(() => void) | undefined>(undefined);
   const scheduledMobileCloseActionFrameRef = useRef<number | undefined>(undefined);
   const [quickFindOpen, setQuickFindOpen] = useState(false);
+  const [dailyReviewOpen, setDailyReviewOpen] = useState(false);
   const [memoScope, setMemoScope] = useState<PrimaryMemoScope>("home");
 
   useEffect(() => {
@@ -116,10 +119,23 @@ export const AppSidebarProvider = ({ children }: { children: ReactNode }) => {
       completeMobileClose,
       quickFindOpen,
       setQuickFindOpen,
+      dailyReviewOpen,
+      setDailyReviewOpen,
       memoScope,
       setMemoScope,
     }),
-    [attachmentSection, inboxFilter, memoDetail, setMemoDetail, mobileOpen, closeMobileThen, completeMobileClose, quickFindOpen, memoScope],
+    [
+      attachmentSection,
+      inboxFilter,
+      memoDetail,
+      setMemoDetail,
+      mobileOpen,
+      closeMobileThen,
+      completeMobileClose,
+      quickFindOpen,
+      dailyReviewOpen,
+      memoScope,
+    ],
   );
 
   return <AppSidebarContext.Provider value={value}>{children}</AppSidebarContext.Provider>;

@@ -652,6 +652,30 @@ func TestHasLocationSQLiteBehavior(t *testing.T) {
 	}
 }
 
+// TestRenderHasAssistant pins the presence check for the fork's AI attribution
+// flag, which the daily review relies on to leave assistant replies out.
+func TestRenderHasAssistant(t *testing.T) {
+	t.Parallel()
+
+	engine, err := NewEngine(NewSchema())
+	require.NoError(t, err)
+
+	cases := []struct {
+		dialect DialectName
+		sql     string
+	}{
+		{DialectSQLite, "JSON_EXTRACT(`memo`.`payload`, '$.assistant') IS NOT NULL"},
+		{DialectMySQL, "COALESCE(JSON_TYPE(JSON_EXTRACT(`memo`.`payload`, '$.assistant')), 'NULL') != 'NULL'"},
+		{DialectPostgres, "memo.payload->>'assistant' IS NOT NULL"},
+	}
+	for _, tc := range cases {
+		stmt, err := engine.CompileToStatement(context.Background(), `!has_assistant`, RenderOptions{Dialect: tc.dialect})
+		require.NoError(t, err, tc.dialect)
+		require.Equal(t, "NOT ("+tc.sql+")", stmt.SQL, tc.dialect)
+		require.Empty(t, stmt.Args, tc.dialect)
+	}
+}
+
 func TestCompileRejectsOversizedExpression(t *testing.T) {
 	t.Parallel()
 	engine, err := NewEngine(NewSchema())

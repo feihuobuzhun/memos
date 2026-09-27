@@ -153,6 +153,28 @@ func (s *APIV1Service) UpdateUserSetting(ctx context.Context, request *v1pb.Upda
 				TagsSetting: incomingTags,
 			},
 		}
+	case storepb.UserSetting_REVIEW:
+		// The review setting is small and always edited as a whole, so the mask
+		// only decides whether the client meant to write it at all.
+		for _, field := range request.UpdateMask.Paths {
+			if field != "review" {
+				return nil, status.Errorf(codes.InvalidArgument, "unsupported update mask path for review setting: %s", field)
+			}
+		}
+		incomingReview := request.Setting.GetReviewSetting()
+		if incomingReview == nil {
+			return nil, status.Errorf(codes.InvalidArgument, "review setting is required")
+		}
+		normalized := convertReviewSettingToStore(incomingReview)
+		if err := normalizeReviewSetting(normalized); err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid review setting: %v", err)
+		}
+		updatedSetting = &v1pb.UserSetting{
+			Name: request.Setting.Name,
+			Value: &v1pb.UserSetting_ReviewSetting_{
+				ReviewSetting: convertReviewSettingFromStore(normalized),
+			},
+		}
 	default:
 		return nil, status.Errorf(codes.InvalidArgument, "setting type %s should not be updated via UpdateUserSetting", storeKey.String())
 	}
