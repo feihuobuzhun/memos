@@ -241,6 +241,22 @@
     "comment": "评论",
     "saved": "已保存"
   },
+  "graph": {
+    "title": "引用关系",
+    "description": "这条笔记通过双链和其他笔记的连接情况。",
+    "back": "返回",
+    "direction": "方向",
+    "direction-outgoing": "引用了",
+    "direction-incoming": "被引用",
+    "direction-both": "双向",
+    "depth": "层数",
+    "depth-value": "{{count}} 层",
+    "open-memo": "打开这条笔记",
+    "has-more": "这一层之外还有引用",
+    "no-references": "这条笔记还没有任何引用。",
+    "empty-memo": "（空笔记）",
+    "legend": "点击卡片可以从它继续往下看。虚线表示指向已经出现过的卡片。"
+  },
   "inbox": {
     "failed-to-load": "加载失败",
     "no-archived": "无已归档通知",

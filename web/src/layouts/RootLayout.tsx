@@ -10,6 +10,7 @@ import AppSidebar, {
   useSidebarWidth,
 } from "@/components/AppSidebar";
 import { DailyReviewDialog } from "@/components/DailyReview";
+import { ReferenceGraphDialog } from "@/components/ReferenceGraph";
 import { AppSidebarProvider } from "@/contexts/AppSidebarContext";
 import { GlobalMemoEditorProvider } from "@/contexts/GlobalMemoEditorContext";
 import { useInstance } from "@/contexts/InstanceContext";
@@ -107,6 +108,7 @@ const RootLayoutContent = () => {
       </main>
       <QuickFindDialog />
       <DailyReviewDialog />
+      <ReferenceGraphDialog />
     </div>
   );
 };

@@ -216,6 +216,39 @@ Files: `filter/schema.go`, `proto/store/user_setting.proto`,
 `web/src/hooks/useReviewQueries.ts`, `web/src/lib/review-scope.ts`,
 `web/src/components/DailyReview/`.
 
+### Reference graph
+
+A picture of how one memo connects to the others through inline references,
+opened from a memo's ⋯ menu. A dialog rather than a page: following a thought
+outward should not cost a navigation.
+
+- Laid out as a tidy tree growing to the right — the root on the left, what it
+  references beside it, and so on — which is how the references actually read.
+- **Direction**: what this memo references, what references it, or both.
+- **Depth**: 1–5 levels, default 3.
+- Clicking a card re-roots the graph on it and pushes a trail entry, so a
+  reader can go further than the requested depth and still get back.
+- A card with references past the requested depth is marked, so a leaf is
+  visibly "there is more here" rather than "nothing here".
+- Each memo is drawn once, in the column of its distance from the root. A
+  reference that points at a card already on screen — the edge that closes a
+  cycle, or one that skips a level — is still drawn, dashed.
+- Comments are excluded. A comment is a reply that belongs to exactly one memo,
+  and in this fork most of them are written by an AI assistant rather than by
+  the author thinking.
+- Memos the caller may not read are absent, and so are the edges that touched
+  them, including the "there is more here" mark.
+
+The walk happens on the server (`GetMemoReferenceGraph`), bounded by depth and
+a node budget, so opening the graph costs one request instead of one per card.
+
+Files: `proto/api/v1/memo_service.proto`,
+`server/api/v1/memo_service_reference_graph.go`,
+`web/src/lib/reference-graph-layout.ts`,
+`web/src/hooks/useReferenceGraphQuery.ts`,
+`web/src/components/ReferenceGraph/`,
+`web/src/components/MemoActionMenu/MemoActionMenu.tsx`.
+
 ## Development
 
 The backend needs Go (see `go.mod`) and the frontend needs Node and pnpm.

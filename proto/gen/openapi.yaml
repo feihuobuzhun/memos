@@ -1185,6 +1185,60 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/Status'
+    /api/v1/memos/{memo}/referenceGraph:
+        get:
+            tags:
+                - MemoService
+            description: |-
+                GetMemoReferenceGraph walks the REFERENCE relations around one memo and
+                 returns the subgraph it reaches, so a client can draw the neighbourhood
+                 without a request per node. Only memos the caller may read appear.
+            operationId: MemoService_GetMemoReferenceGraph
+            parameters:
+                - name: memo
+                  in: path
+                  description: The memo id.
+                  required: true
+                  schema:
+                    type: string
+                - name: direction
+                  in: query
+                  description: Optional. Defaults to OUTGOING.
+                  schema:
+                    enum:
+                        - DIRECTION_UNSPECIFIED
+                        - OUTGOING
+                        - INCOMING
+                        - BOTH
+                    type: string
+                    format: enum
+                - name: depth
+                  in: query
+                  description: |-
+                    Optional. How many hops from the root to walk. Defaults to 3, capped at 5:
+                     a deeper graph stops being readable long before it stops being cheap.
+                  schema:
+                    type: integer
+                    format: int32
+                - name: maxNodes
+                  in: query
+                  description: Optional. The most nodes to return. Defaults to 200, capped at 500.
+                  schema:
+                    type: integer
+                    format: int32
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/GetMemoReferenceGraphResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
     /api/v1/memos/{memo}/relations:
         get:
             tags:
@@ -3408,6 +3462,64 @@ components:
                     allOf:
                         - $ref: '#/components/schemas/User'
                     description: The authenticated user's information.
+        GetMemoReferenceGraphResponse:
+            type: object
+            properties:
+                nodes:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/GetMemoReferenceGraphResponse_Node'
+                    description: Every memo reached, the root first, then in breadth-first order.
+                edges:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/GetMemoReferenceGraphResponse_Edge'
+                    description: |-
+                        Every REFERENCE relation between two returned nodes, including the ones
+                         that close a cycle or skip a level.
+                truncated:
+                    type: boolean
+                    description: |-
+                        Whether the walk stopped early, at the depth or the node budget. The graph
+                         is still valid; it is just not the whole neighbourhood.
+        GetMemoReferenceGraphResponse_Edge:
+            type: object
+            properties:
+                source:
+                    type: string
+                    description: |-
+                        The memo whose content holds the link.
+                         Format: memos/{memo}
+                target:
+                    type: string
+                    description: |-
+                        The memo the link points at.
+                         Format: memos/{memo}
+        GetMemoReferenceGraphResponse_Node:
+            type: object
+            properties:
+                name:
+                    type: string
+                    description: |-
+                        The resource name of the memo.
+                         Format: memos/{memo}
+                snippet:
+                    type: string
+                    description: Plain-text snippet of the memo's content.
+                depth:
+                    type: integer
+                    description: Hops from the root, following the requested direction. The root is 0.
+                    format: int32
+                createTime:
+                    type: string
+                    description: When the memo was written, so a node can be dated without a second call.
+                    format: date-time
+                hasMore:
+                    type: boolean
+                    description: |-
+                        Whether this memo has further references that were not walked, because
+                         the depth or the node budget ran out. Drives the "there is more here"
+                         affordance that re-roots the graph on this memo.
         GetUserWebhookSigningSecretResponse:
             type: object
             properties:

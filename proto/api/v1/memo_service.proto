@@ -146,6 +146,13 @@ service MemoService {
   rpc ListReviewMemos(ListReviewMemosRequest) returns (ListReviewMemosResponse) {
     option (google.api.http) = {get: "/api/v1/memos/-/review"};
   }
+  // GetMemoReferenceGraph walks the REFERENCE relations around one memo and
+  // returns the subgraph it reaches, so a client can draw the neighbourhood
+  // without a request per node. Only memos the caller may read appear.
+  rpc GetMemoReferenceGraph(GetMemoReferenceGraphRequest) returns (GetMemoReferenceGraphResponse) {
+    option (google.api.http) = {get: "/api/v1/{name=memos/*}/referenceGraph"};
+    option (google.api.method_signature) = "name";
+  }
   // BatchGetLinkMetadata gets metadata for links.
   rpc BatchGetLinkMetadata(BatchGetLinkMetadataRequest) returns (BatchGetLinkMetadataResponse) {
     option (google.api.http) = {
@@ -684,6 +691,77 @@ message ListReviewMemosResponse {
   // usually far more than the day's selection. Zero means the setting matches
   // nothing, which reads very differently from "you have no memos".
   int32 eligible_count = 2;
+}
+
+message GetMemoReferenceGraphRequest {
+  // Required. The memo the walk starts from.
+  // Format: memos/{memo}
+  string name = 1 [
+    (google.api.field_behavior) = REQUIRED,
+    (google.api.resource_reference) = {type: "memos.api.v1/Memo"}
+  ];
+
+  // Which way a reference is followed. A memo's content holds the link, so
+  // OUTGOING is "what this memo points at" and INCOMING is "what points here".
+  enum Direction {
+    DIRECTION_UNSPECIFIED = 0;
+    OUTGOING = 1;
+    INCOMING = 2;
+    BOTH = 3;
+  }
+
+  // Optional. Defaults to OUTGOING.
+  Direction direction = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // Optional. How many hops from the root to walk. Defaults to 3, capped at 5:
+  // a deeper graph stops being readable long before it stops being cheap.
+  int32 depth = 3 [(google.api.field_behavior) = OPTIONAL];
+
+  // Optional. The most nodes to return. Defaults to 200, capped at 500.
+  int32 max_nodes = 4 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message GetMemoReferenceGraphResponse {
+  // Every memo reached, the root first, then in breadth-first order.
+  repeated Node nodes = 1;
+
+  // Every REFERENCE relation between two returned nodes, including the ones
+  // that close a cycle or skip a level.
+  repeated Edge edges = 2;
+
+  // Whether the walk stopped early, at the depth or the node budget. The graph
+  // is still valid; it is just not the whole neighbourhood.
+  bool truncated = 3;
+
+  message Node {
+    // The resource name of the memo.
+    // Format: memos/{memo}
+    string name = 1 [(google.api.resource_reference) = {type: "memos.api.v1/Memo"}];
+
+    // Plain-text snippet of the memo's content.
+    string snippet = 2;
+
+    // Hops from the root, following the requested direction. The root is 0.
+    int32 depth = 3;
+
+    // When the memo was written, so a node can be dated without a second call.
+    google.protobuf.Timestamp create_time = 4;
+
+    // Whether this memo has further references that were not walked, because
+    // the depth or the node budget ran out. Drives the "there is more here"
+    // affordance that re-roots the graph on this memo.
+    bool has_more = 5;
+  }
+
+  message Edge {
+    // The memo whose content holds the link.
+    // Format: memos/{memo}
+    string source = 1 [(google.api.resource_reference) = {type: "memos.api.v1/Memo"}];
+
+    // The memo the link points at.
+    // Format: memos/{memo}
+    string target = 2 [(google.api.resource_reference) = {type: "memos.api.v1/Memo"}];
+  }
 }
 
 message BatchGetLinkMetadataRequest {

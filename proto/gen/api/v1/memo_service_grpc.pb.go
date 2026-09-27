@@ -20,27 +20,28 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	MemoService_CreateMemo_FullMethodName           = "/memos.api.v1.MemoService/CreateMemo"
-	MemoService_ListMemos_FullMethodName            = "/memos.api.v1.MemoService/ListMemos"
-	MemoService_GetMemo_FullMethodName              = "/memos.api.v1.MemoService/GetMemo"
-	MemoService_UpdateMemo_FullMethodName           = "/memos.api.v1.MemoService/UpdateMemo"
-	MemoService_DeleteMemo_FullMethodName           = "/memos.api.v1.MemoService/DeleteMemo"
-	MemoService_SetMemoAttachments_FullMethodName   = "/memos.api.v1.MemoService/SetMemoAttachments"
-	MemoService_ListMemoAttachments_FullMethodName  = "/memos.api.v1.MemoService/ListMemoAttachments"
-	MemoService_SetMemoRelations_FullMethodName     = "/memos.api.v1.MemoService/SetMemoRelations"
-	MemoService_ListMemoRelations_FullMethodName    = "/memos.api.v1.MemoService/ListMemoRelations"
-	MemoService_CreateMemoComment_FullMethodName    = "/memos.api.v1.MemoService/CreateMemoComment"
-	MemoService_ListMemoComments_FullMethodName     = "/memos.api.v1.MemoService/ListMemoComments"
-	MemoService_ListMemoReactions_FullMethodName    = "/memos.api.v1.MemoService/ListMemoReactions"
-	MemoService_UpsertMemoReaction_FullMethodName   = "/memos.api.v1.MemoService/UpsertMemoReaction"
-	MemoService_DeleteMemoReaction_FullMethodName   = "/memos.api.v1.MemoService/DeleteMemoReaction"
-	MemoService_CreateMemoShare_FullMethodName      = "/memos.api.v1.MemoService/CreateMemoShare"
-	MemoService_ListMemoShares_FullMethodName       = "/memos.api.v1.MemoService/ListMemoShares"
-	MemoService_DeleteMemoShare_FullMethodName      = "/memos.api.v1.MemoService/DeleteMemoShare"
-	MemoService_GetSharedMemo_FullMethodName        = "/memos.api.v1.MemoService/GetSharedMemo"
-	MemoService_GetLinkMetadata_FullMethodName      = "/memos.api.v1.MemoService/GetLinkMetadata"
-	MemoService_ListReviewMemos_FullMethodName      = "/memos.api.v1.MemoService/ListReviewMemos"
-	MemoService_BatchGetLinkMetadata_FullMethodName = "/memos.api.v1.MemoService/BatchGetLinkMetadata"
+	MemoService_CreateMemo_FullMethodName            = "/memos.api.v1.MemoService/CreateMemo"
+	MemoService_ListMemos_FullMethodName             = "/memos.api.v1.MemoService/ListMemos"
+	MemoService_GetMemo_FullMethodName               = "/memos.api.v1.MemoService/GetMemo"
+	MemoService_UpdateMemo_FullMethodName            = "/memos.api.v1.MemoService/UpdateMemo"
+	MemoService_DeleteMemo_FullMethodName            = "/memos.api.v1.MemoService/DeleteMemo"
+	MemoService_SetMemoAttachments_FullMethodName    = "/memos.api.v1.MemoService/SetMemoAttachments"
+	MemoService_ListMemoAttachments_FullMethodName   = "/memos.api.v1.MemoService/ListMemoAttachments"
+	MemoService_SetMemoRelations_FullMethodName      = "/memos.api.v1.MemoService/SetMemoRelations"
+	MemoService_ListMemoRelations_FullMethodName     = "/memos.api.v1.MemoService/ListMemoRelations"
+	MemoService_CreateMemoComment_FullMethodName     = "/memos.api.v1.MemoService/CreateMemoComment"
+	MemoService_ListMemoComments_FullMethodName      = "/memos.api.v1.MemoService/ListMemoComments"
+	MemoService_ListMemoReactions_FullMethodName     = "/memos.api.v1.MemoService/ListMemoReactions"
+	MemoService_UpsertMemoReaction_FullMethodName    = "/memos.api.v1.MemoService/UpsertMemoReaction"
+	MemoService_DeleteMemoReaction_FullMethodName    = "/memos.api.v1.MemoService/DeleteMemoReaction"
+	MemoService_CreateMemoShare_FullMethodName       = "/memos.api.v1.MemoService/CreateMemoShare"
+	MemoService_ListMemoShares_FullMethodName        = "/memos.api.v1.MemoService/ListMemoShares"
+	MemoService_DeleteMemoShare_FullMethodName       = "/memos.api.v1.MemoService/DeleteMemoShare"
+	MemoService_GetSharedMemo_FullMethodName         = "/memos.api.v1.MemoService/GetSharedMemo"
+	MemoService_GetLinkMetadata_FullMethodName       = "/memos.api.v1.MemoService/GetLinkMetadata"
+	MemoService_ListReviewMemos_FullMethodName       = "/memos.api.v1.MemoService/ListReviewMemos"
+	MemoService_GetMemoReferenceGraph_FullMethodName = "/memos.api.v1.MemoService/GetMemoReferenceGraph"
+	MemoService_BatchGetLinkMetadata_FullMethodName  = "/memos.api.v1.MemoService/BatchGetLinkMetadata"
 )
 
 // MemoServiceClient is the client API for MemoService service.
@@ -100,6 +101,10 @@ type MemoServiceClient interface {
 	// a sample of their own memos, drawn from the memos their review setting
 	// makes eligible. The selection is stable for one local day.
 	ListReviewMemos(ctx context.Context, in *ListReviewMemosRequest, opts ...grpc.CallOption) (*ListReviewMemosResponse, error)
+	// GetMemoReferenceGraph walks the REFERENCE relations around one memo and
+	// returns the subgraph it reaches, so a client can draw the neighbourhood
+	// without a request per node. Only memos the caller may read appear.
+	GetMemoReferenceGraph(ctx context.Context, in *GetMemoReferenceGraphRequest, opts ...grpc.CallOption) (*GetMemoReferenceGraphResponse, error)
 	// BatchGetLinkMetadata gets metadata for links.
 	BatchGetLinkMetadata(ctx context.Context, in *BatchGetLinkMetadataRequest, opts ...grpc.CallOption) (*BatchGetLinkMetadataResponse, error)
 }
@@ -312,6 +317,16 @@ func (c *memoServiceClient) ListReviewMemos(ctx context.Context, in *ListReviewM
 	return out, nil
 }
 
+func (c *memoServiceClient) GetMemoReferenceGraph(ctx context.Context, in *GetMemoReferenceGraphRequest, opts ...grpc.CallOption) (*GetMemoReferenceGraphResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetMemoReferenceGraphResponse)
+	err := c.cc.Invoke(ctx, MemoService_GetMemoReferenceGraph_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *memoServiceClient) BatchGetLinkMetadata(ctx context.Context, in *BatchGetLinkMetadataRequest, opts ...grpc.CallOption) (*BatchGetLinkMetadataResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(BatchGetLinkMetadataResponse)
@@ -379,6 +394,10 @@ type MemoServiceServer interface {
 	// a sample of their own memos, drawn from the memos their review setting
 	// makes eligible. The selection is stable for one local day.
 	ListReviewMemos(context.Context, *ListReviewMemosRequest) (*ListReviewMemosResponse, error)
+	// GetMemoReferenceGraph walks the REFERENCE relations around one memo and
+	// returns the subgraph it reaches, so a client can draw the neighbourhood
+	// without a request per node. Only memos the caller may read appear.
+	GetMemoReferenceGraph(context.Context, *GetMemoReferenceGraphRequest) (*GetMemoReferenceGraphResponse, error)
 	// BatchGetLinkMetadata gets metadata for links.
 	BatchGetLinkMetadata(context.Context, *BatchGetLinkMetadataRequest) (*BatchGetLinkMetadataResponse, error)
 	mustEmbedUnimplementedMemoServiceServer()
@@ -450,6 +469,9 @@ func (UnimplementedMemoServiceServer) GetLinkMetadata(context.Context, *GetLinkM
 }
 func (UnimplementedMemoServiceServer) ListReviewMemos(context.Context, *ListReviewMemosRequest) (*ListReviewMemosResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListReviewMemos not implemented")
+}
+func (UnimplementedMemoServiceServer) GetMemoReferenceGraph(context.Context, *GetMemoReferenceGraphRequest) (*GetMemoReferenceGraphResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetMemoReferenceGraph not implemented")
 }
 func (UnimplementedMemoServiceServer) BatchGetLinkMetadata(context.Context, *BatchGetLinkMetadataRequest) (*BatchGetLinkMetadataResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method BatchGetLinkMetadata not implemented")
@@ -835,6 +857,24 @@ func _MemoService_ListReviewMemos_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MemoService_GetMemoReferenceGraph_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetMemoReferenceGraphRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MemoServiceServer).GetMemoReferenceGraph(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MemoService_GetMemoReferenceGraph_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MemoServiceServer).GetMemoReferenceGraph(ctx, req.(*GetMemoReferenceGraphRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _MemoService_BatchGetLinkMetadata_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(BatchGetLinkMetadataRequest)
 	if err := dec(in); err != nil {
@@ -939,6 +979,10 @@ var MemoService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListReviewMemos",
 			Handler:    _MemoService_ListReviewMemos_Handler,
+		},
+		{
+			MethodName: "GetMemoReferenceGraph",
+			Handler:    _MemoService_GetMemoReferenceGraph_Handler,
 		},
 		{
 			MethodName: "BatchGetLinkMetadata",

@@ -89,6 +89,9 @@ const (
 	// MemoServiceListReviewMemosProcedure is the fully-qualified name of the MemoService's
 	// ListReviewMemos RPC.
 	MemoServiceListReviewMemosProcedure = "/memos.api.v1.MemoService/ListReviewMemos"
+	// MemoServiceGetMemoReferenceGraphProcedure is the fully-qualified name of the MemoService's
+	// GetMemoReferenceGraph RPC.
+	MemoServiceGetMemoReferenceGraphProcedure = "/memos.api.v1.MemoService/GetMemoReferenceGraph"
 	// MemoServiceBatchGetLinkMetadataProcedure is the fully-qualified name of the MemoService's
 	// BatchGetLinkMetadata RPC.
 	MemoServiceBatchGetLinkMetadataProcedure = "/memos.api.v1.MemoService/BatchGetLinkMetadata"
@@ -149,6 +152,10 @@ type MemoServiceClient interface {
 	// a sample of their own memos, drawn from the memos their review setting
 	// makes eligible. The selection is stable for one local day.
 	ListReviewMemos(context.Context, *connect.Request[v1.ListReviewMemosRequest]) (*connect.Response[v1.ListReviewMemosResponse], error)
+	// GetMemoReferenceGraph walks the REFERENCE relations around one memo and
+	// returns the subgraph it reaches, so a client can draw the neighbourhood
+	// without a request per node. Only memos the caller may read appear.
+	GetMemoReferenceGraph(context.Context, *connect.Request[v1.GetMemoReferenceGraphRequest]) (*connect.Response[v1.GetMemoReferenceGraphResponse], error)
 	// BatchGetLinkMetadata gets metadata for links.
 	BatchGetLinkMetadata(context.Context, *connect.Request[v1.BatchGetLinkMetadataRequest]) (*connect.Response[v1.BatchGetLinkMetadataResponse], error)
 }
@@ -284,6 +291,12 @@ func NewMemoServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(memoServiceMethods.ByName("ListReviewMemos")),
 			connect.WithClientOptions(opts...),
 		),
+		getMemoReferenceGraph: connect.NewClient[v1.GetMemoReferenceGraphRequest, v1.GetMemoReferenceGraphResponse](
+			httpClient,
+			baseURL+MemoServiceGetMemoReferenceGraphProcedure,
+			connect.WithSchema(memoServiceMethods.ByName("GetMemoReferenceGraph")),
+			connect.WithClientOptions(opts...),
+		),
 		batchGetLinkMetadata: connect.NewClient[v1.BatchGetLinkMetadataRequest, v1.BatchGetLinkMetadataResponse](
 			httpClient,
 			baseURL+MemoServiceBatchGetLinkMetadataProcedure,
@@ -295,27 +308,28 @@ func NewMemoServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 
 // memoServiceClient implements MemoServiceClient.
 type memoServiceClient struct {
-	createMemo           *connect.Client[v1.CreateMemoRequest, v1.Memo]
-	listMemos            *connect.Client[v1.ListMemosRequest, v1.ListMemosResponse]
-	getMemo              *connect.Client[v1.GetMemoRequest, v1.Memo]
-	updateMemo           *connect.Client[v1.UpdateMemoRequest, v1.Memo]
-	deleteMemo           *connect.Client[v1.DeleteMemoRequest, emptypb.Empty]
-	setMemoAttachments   *connect.Client[v1.SetMemoAttachmentsRequest, emptypb.Empty]
-	listMemoAttachments  *connect.Client[v1.ListMemoAttachmentsRequest, v1.ListMemoAttachmentsResponse]
-	setMemoRelations     *connect.Client[v1.SetMemoRelationsRequest, emptypb.Empty]
-	listMemoRelations    *connect.Client[v1.ListMemoRelationsRequest, v1.ListMemoRelationsResponse]
-	createMemoComment    *connect.Client[v1.CreateMemoCommentRequest, v1.Memo]
-	listMemoComments     *connect.Client[v1.ListMemoCommentsRequest, v1.ListMemoCommentsResponse]
-	listMemoReactions    *connect.Client[v1.ListMemoReactionsRequest, v1.ListMemoReactionsResponse]
-	upsertMemoReaction   *connect.Client[v1.UpsertMemoReactionRequest, v1.Reaction]
-	deleteMemoReaction   *connect.Client[v1.DeleteMemoReactionRequest, emptypb.Empty]
-	createMemoShare      *connect.Client[v1.CreateMemoShareRequest, v1.MemoShare]
-	listMemoShares       *connect.Client[v1.ListMemoSharesRequest, v1.ListMemoSharesResponse]
-	deleteMemoShare      *connect.Client[v1.DeleteMemoShareRequest, emptypb.Empty]
-	getSharedMemo        *connect.Client[v1.GetSharedMemoRequest, v1.Memo]
-	getLinkMetadata      *connect.Client[v1.GetLinkMetadataRequest, v1.LinkMetadata]
-	listReviewMemos      *connect.Client[v1.ListReviewMemosRequest, v1.ListReviewMemosResponse]
-	batchGetLinkMetadata *connect.Client[v1.BatchGetLinkMetadataRequest, v1.BatchGetLinkMetadataResponse]
+	createMemo            *connect.Client[v1.CreateMemoRequest, v1.Memo]
+	listMemos             *connect.Client[v1.ListMemosRequest, v1.ListMemosResponse]
+	getMemo               *connect.Client[v1.GetMemoRequest, v1.Memo]
+	updateMemo            *connect.Client[v1.UpdateMemoRequest, v1.Memo]
+	deleteMemo            *connect.Client[v1.DeleteMemoRequest, emptypb.Empty]
+	setMemoAttachments    *connect.Client[v1.SetMemoAttachmentsRequest, emptypb.Empty]
+	listMemoAttachments   *connect.Client[v1.ListMemoAttachmentsRequest, v1.ListMemoAttachmentsResponse]
+	setMemoRelations      *connect.Client[v1.SetMemoRelationsRequest, emptypb.Empty]
+	listMemoRelations     *connect.Client[v1.ListMemoRelationsRequest, v1.ListMemoRelationsResponse]
+	createMemoComment     *connect.Client[v1.CreateMemoCommentRequest, v1.Memo]
+	listMemoComments      *connect.Client[v1.ListMemoCommentsRequest, v1.ListMemoCommentsResponse]
+	listMemoReactions     *connect.Client[v1.ListMemoReactionsRequest, v1.ListMemoReactionsResponse]
+	upsertMemoReaction    *connect.Client[v1.UpsertMemoReactionRequest, v1.Reaction]
+	deleteMemoReaction    *connect.Client[v1.DeleteMemoReactionRequest, emptypb.Empty]
+	createMemoShare       *connect.Client[v1.CreateMemoShareRequest, v1.MemoShare]
+	listMemoShares        *connect.Client[v1.ListMemoSharesRequest, v1.ListMemoSharesResponse]
+	deleteMemoShare       *connect.Client[v1.DeleteMemoShareRequest, emptypb.Empty]
+	getSharedMemo         *connect.Client[v1.GetSharedMemoRequest, v1.Memo]
+	getLinkMetadata       *connect.Client[v1.GetLinkMetadataRequest, v1.LinkMetadata]
+	listReviewMemos       *connect.Client[v1.ListReviewMemosRequest, v1.ListReviewMemosResponse]
+	getMemoReferenceGraph *connect.Client[v1.GetMemoReferenceGraphRequest, v1.GetMemoReferenceGraphResponse]
+	batchGetLinkMetadata  *connect.Client[v1.BatchGetLinkMetadataRequest, v1.BatchGetLinkMetadataResponse]
 }
 
 // CreateMemo calls memos.api.v1.MemoService.CreateMemo.
@@ -418,6 +432,11 @@ func (c *memoServiceClient) ListReviewMemos(ctx context.Context, req *connect.Re
 	return c.listReviewMemos.CallUnary(ctx, req)
 }
 
+// GetMemoReferenceGraph calls memos.api.v1.MemoService.GetMemoReferenceGraph.
+func (c *memoServiceClient) GetMemoReferenceGraph(ctx context.Context, req *connect.Request[v1.GetMemoReferenceGraphRequest]) (*connect.Response[v1.GetMemoReferenceGraphResponse], error) {
+	return c.getMemoReferenceGraph.CallUnary(ctx, req)
+}
+
 // BatchGetLinkMetadata calls memos.api.v1.MemoService.BatchGetLinkMetadata.
 func (c *memoServiceClient) BatchGetLinkMetadata(ctx context.Context, req *connect.Request[v1.BatchGetLinkMetadataRequest]) (*connect.Response[v1.BatchGetLinkMetadataResponse], error) {
 	return c.batchGetLinkMetadata.CallUnary(ctx, req)
@@ -478,6 +497,10 @@ type MemoServiceHandler interface {
 	// a sample of their own memos, drawn from the memos their review setting
 	// makes eligible. The selection is stable for one local day.
 	ListReviewMemos(context.Context, *connect.Request[v1.ListReviewMemosRequest]) (*connect.Response[v1.ListReviewMemosResponse], error)
+	// GetMemoReferenceGraph walks the REFERENCE relations around one memo and
+	// returns the subgraph it reaches, so a client can draw the neighbourhood
+	// without a request per node. Only memos the caller may read appear.
+	GetMemoReferenceGraph(context.Context, *connect.Request[v1.GetMemoReferenceGraphRequest]) (*connect.Response[v1.GetMemoReferenceGraphResponse], error)
 	// BatchGetLinkMetadata gets metadata for links.
 	BatchGetLinkMetadata(context.Context, *connect.Request[v1.BatchGetLinkMetadataRequest]) (*connect.Response[v1.BatchGetLinkMetadataResponse], error)
 }
@@ -609,6 +632,12 @@ func NewMemoServiceHandler(svc MemoServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(memoServiceMethods.ByName("ListReviewMemos")),
 		connect.WithHandlerOptions(opts...),
 	)
+	memoServiceGetMemoReferenceGraphHandler := connect.NewUnaryHandler(
+		MemoServiceGetMemoReferenceGraphProcedure,
+		svc.GetMemoReferenceGraph,
+		connect.WithSchema(memoServiceMethods.ByName("GetMemoReferenceGraph")),
+		connect.WithHandlerOptions(opts...),
+	)
 	memoServiceBatchGetLinkMetadataHandler := connect.NewUnaryHandler(
 		MemoServiceBatchGetLinkMetadataProcedure,
 		svc.BatchGetLinkMetadata,
@@ -657,6 +686,8 @@ func NewMemoServiceHandler(svc MemoServiceHandler, opts ...connect.HandlerOption
 			memoServiceGetLinkMetadataHandler.ServeHTTP(w, r)
 		case MemoServiceListReviewMemosProcedure:
 			memoServiceListReviewMemosHandler.ServeHTTP(w, r)
+		case MemoServiceGetMemoReferenceGraphProcedure:
+			memoServiceGetMemoReferenceGraphHandler.ServeHTTP(w, r)
 		case MemoServiceBatchGetLinkMetadataProcedure:
 			memoServiceBatchGetLinkMetadataHandler.ServeHTTP(w, r)
 		default:
@@ -746,6 +777,10 @@ func (UnimplementedMemoServiceHandler) GetLinkMetadata(context.Context, *connect
 
 func (UnimplementedMemoServiceHandler) ListReviewMemos(context.Context, *connect.Request[v1.ListReviewMemosRequest]) (*connect.Response[v1.ListReviewMemosResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memos.api.v1.MemoService.ListReviewMemos is not implemented"))
+}
+
+func (UnimplementedMemoServiceHandler) GetMemoReferenceGraph(context.Context, *connect.Request[v1.GetMemoReferenceGraphRequest]) (*connect.Response[v1.GetMemoReferenceGraphResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memos.api.v1.MemoService.GetMemoReferenceGraph is not implemented"))
 }
 
 func (UnimplementedMemoServiceHandler) BatchGetLinkMetadata(context.Context, *connect.Request[v1.BatchGetLinkMetadataRequest]) (*connect.Response[v1.BatchGetLinkMetadataResponse], error) {

@@ -211,6 +211,22 @@
       "wait-for-upload": "Attendi il completamento del caricamento"
     }
   },
+  "graph": {
+    "title": "Reference graph",
+    "description": "How this memo connects to the others through inline references.",
+    "back": "Back",
+    "direction": "Direction",
+    "direction-outgoing": "References",
+    "direction-incoming": "Referenced by",
+    "direction-both": "Both ways",
+    "depth": "Depth",
+    "depth-value": "{{count}} levels",
+    "open-memo": "Open this memo",
+    "has-more": "More references beyond this level",
+    "no-references": "This memo has no references yet.",
+    "empty-memo": "(empty memo)",
+    "legend": "Click a card to continue from it. A dashed line is a reference to a card already shown."
+  },
   "inbox": {
     "failed-to-load": "Impossibile caricare l'elemento della posta in arrivo",
     "no-archived": "Nessuna notifica archiviata",
