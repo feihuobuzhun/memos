@@ -289,6 +289,22 @@
     "comment": "評論",
     "saved": "已儲存"
   },
+  "graph": {
+    "title": "引用關係",
+    "description": "這則筆記透過雙鏈和其他筆記的連接情況。",
+    "back": "返回",
+    "direction": "方向",
+    "direction-outgoing": "引用了",
+    "direction-incoming": "被引用",
+    "direction-both": "雙向",
+    "depth": "層數",
+    "depth-value": "{{count}} 層",
+    "open-memo": "開啟這則筆記",
+    "has-more": "這一層之外還有引用",
+    "no-references": "這則筆記還沒有任何引用。",
+    "empty-memo": "（空筆記）",
+    "legend": "點擊卡片可以從它繼續往下看。虛線表示指向已經出現過的卡片。"
+  },
   "inbox": {
     "failed-to-load": "載入失敗",
     "no-archived": "無已封存通知",
