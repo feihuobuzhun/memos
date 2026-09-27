@@ -656,6 +656,7 @@ message UserSetting {
     GeneralSetting general_setting = 2;
     WebhooksSetting webhooks_setting = 5;
     TagsSetting tags_setting = 6;
+    ReviewSetting review_setting = 7;
   }
 
   // Enumeration of user setting keys.
@@ -667,6 +668,8 @@ message UserSetting {
     WEBHOOKS = 4;
     // TAGS is the key for per-user tag metadata.
     TAGS = 5;
+    // REVIEW is the key for the user's daily review preferences.
+    REVIEW = 6;
   }
 
   // General user settings configuration.
@@ -715,6 +718,46 @@ message UserSetting {
   message WebhooksSetting {
     // List of user webhooks.
     repeated UserWebhook webhooks = 1;
+  }
+
+  // Daily review preferences: which of the user's own memos are eligible for
+  // review, and how many are surfaced each day.
+  message ReviewSetting {
+    // Condition selects eligible memos by tag.
+    enum Condition {
+      CONDITION_UNSPECIFIED = 0;
+      // Every memo is eligible.
+      ALL_MEMOS = 1;
+      // Only memos carrying one of `tags`, including their nested children.
+      INCLUDE_TAGS = 2;
+      // Every memo except those carrying one of `tags` or a nested child.
+      EXCLUDE_TAGS = 3;
+      // Only memos with no tag at all.
+      UNTAGGED = 4;
+    }
+
+    // TimeRange bounds how far back the review reaches, by creation time.
+    enum TimeRange {
+      TIME_RANGE_UNSPECIFIED = 0;
+      ALL_TIME = 1;
+      LAST_MONTH = 2;
+      LAST_3_MONTHS = 3;
+      LAST_6_MONTHS = 4;
+      LAST_YEAR = 5;
+    }
+
+    // Optional. Defaults to ALL_MEMOS.
+    Condition condition = 1 [(google.api.field_behavior) = OPTIONAL];
+
+    // Optional. Required by INCLUDE_TAGS and EXCLUDE_TAGS, ignored otherwise.
+    // A leading "#" is accepted and normalized away.
+    repeated string tags = 2 [(google.api.field_behavior) = OPTIONAL];
+
+    // Optional. Defaults to ALL_TIME.
+    TimeRange time_range = 3 [(google.api.field_behavior) = OPTIONAL];
+
+    // Optional. How many memos one day's review contains. Defaults to 16.
+    int32 daily_count = 4 [(google.api.field_behavior) = OPTIONAL];
   }
 }
 

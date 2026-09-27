@@ -453,6 +453,14 @@ func (s *ConnectServiceHandler) ListMemoComments(ctx context.Context, req *conne
 	return connect.NewResponse(resp), nil
 }
 
+func (s *ConnectServiceHandler) ListReviewMemos(ctx context.Context, req *connect.Request[v1pb.ListReviewMemosRequest]) (*connect.Response[v1pb.ListReviewMemosResponse], error) {
+	resp, err := s.APIV1Service.ListReviewMemos(ctx, req.Msg)
+	if err != nil {
+		return nil, convertGRPCError(err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
 func (s *ConnectServiceHandler) ListMemoReactions(ctx context.Context, req *connect.Request[v1pb.ListMemoReactionsRequest]) (*connect.Response[v1pb.ListMemoReactionsResponse], error) {
 	resp, err := s.APIV1Service.ListMemoReactions(ctx, req.Msg)
 	if err != nil {
