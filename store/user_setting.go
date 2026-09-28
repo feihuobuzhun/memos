@@ -658,6 +658,18 @@ func convertUserSettingFromRaw(raw *UserSetting) (*storepb.UserSetting, error) {
 			return nil, errors.Wrap(err, "unmarshal review user setting")
 		}
 		userSetting.Value = &storepb.UserSetting_Review{Review: reviewUserSetting}
+	case storepb.UserSetting_DIARY:
+		diaryUserSetting := &storepb.DiaryUserSetting{}
+		if err := protojsonUnmarshaler.Unmarshal([]byte(raw.Value), diaryUserSetting); err != nil {
+			return nil, errors.Wrap(err, "unmarshal diary user setting")
+		}
+		userSetting.Value = &storepb.UserSetting_Diary{Diary: diaryUserSetting}
+	case storepb.UserSetting_DIARY_MOODS:
+		diaryMoodsUserSetting := &storepb.DiaryMoodsUserSetting{}
+		if err := protojsonUnmarshaler.Unmarshal([]byte(raw.Value), diaryMoodsUserSetting); err != nil {
+			return nil, errors.Wrap(err, "unmarshal diary moods user setting")
+		}
+		userSetting.Value = &storepb.UserSetting_DiaryMoods{DiaryMoods: diaryMoodsUserSetting}
 	case storepb.UserSetting_REFRESH_TOKENS:
 		refreshTokensUserSetting := &storepb.RefreshTokensUserSetting{}
 		if err := protojsonUnmarshaler.Unmarshal([]byte(raw.Value), refreshTokensUserSetting); err != nil {
@@ -715,6 +727,20 @@ func convertUserSettingToRaw(userSetting *storepb.UserSetting) (*UserSetting, er
 		value, err := protojson.Marshal(reviewUserSetting)
 		if err != nil {
 			return nil, errors.Wrap(err, "marshal review user setting")
+		}
+		raw.Value = string(value)
+	case storepb.UserSetting_DIARY:
+		diaryUserSetting := userSetting.GetDiary()
+		value, err := protojson.Marshal(diaryUserSetting)
+		if err != nil {
+			return nil, errors.Wrap(err, "marshal diary user setting")
+		}
+		raw.Value = string(value)
+	case storepb.UserSetting_DIARY_MOODS:
+		diaryMoodsUserSetting := userSetting.GetDiaryMoods()
+		value, err := protojson.Marshal(diaryMoodsUserSetting)
+		if err != nil {
+			return nil, errors.Wrap(err, "marshal diary moods user setting")
 		}
 		raw.Value = string(value)
 	case storepb.UserSetting_REFRESH_TOKENS:

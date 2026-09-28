@@ -92,6 +92,8 @@ func convertSettingKeyToStore(key string) (storepb.UserSetting_Key, error) {
 		return storepb.UserSetting_TAGS, nil
 	case v1pb.UserSetting_Key_name[int32(v1pb.UserSetting_REVIEW)]:
 		return storepb.UserSetting_REVIEW, nil
+	case v1pb.UserSetting_Key_name[int32(v1pb.UserSetting_DIARY)]:
+		return storepb.UserSetting_DIARY, nil
 	default:
 		return storepb.UserSetting_KEY_UNSPECIFIED, errors.Errorf("unknown setting key: %s", key)
 	}
@@ -110,6 +112,8 @@ func convertSettingKeyFromStore(key storepb.UserSetting_Key) string {
 		return v1pb.UserSetting_Key_name[int32(v1pb.UserSetting_TAGS)]
 	case storepb.UserSetting_REVIEW:
 		return v1pb.UserSetting_Key_name[int32(v1pb.UserSetting_REVIEW)]
+	case storepb.UserSetting_DIARY:
+		return v1pb.UserSetting_Key_name[int32(v1pb.UserSetting_DIARY)]
 	default:
 		return "unknown"
 	}
@@ -181,6 +185,10 @@ func convertUserSettingFromStore(storeSetting *storepb.UserSetting, user *store.
 			setting.Value = &v1pb.UserSetting_ReviewSetting_{
 				ReviewSetting: convertReviewSettingFromStore(nil),
 			}
+		case storepb.UserSetting_DIARY:
+			setting.Value = &v1pb.UserSetting_DiarySetting_{
+				DiarySetting: convertDiarySettingFromStore(nil),
+			}
 		default:
 			return nil
 		}
@@ -236,6 +244,10 @@ func convertUserSettingFromStore(storeSetting *storepb.UserSetting, user *store.
 		setting.Value = &v1pb.UserSetting_ReviewSetting_{
 			ReviewSetting: convertReviewSettingFromStore(storeSetting.GetReview()),
 		}
+	case storepb.UserSetting_DIARY:
+		setting.Value = &v1pb.UserSetting_DiarySetting_{
+			DiarySetting: convertDiarySettingFromStore(storeSetting.GetDiary()),
+		}
 	default:
 		return nil
 	}
@@ -290,6 +302,12 @@ func convertUserSettingToStore(apiSetting *v1pb.UserSetting, userID int32, key s
 			}
 		} else {
 			return nil, errors.Errorf("tags setting is required")
+		}
+	case storepb.UserSetting_DIARY:
+		if diary := apiSetting.GetDiarySetting(); diary != nil {
+			storeSetting.Value = &storepb.UserSetting_Diary{
+				Diary: convertDiarySettingToStore(diary),
+			}
 		}
 	case storepb.UserSetting_REVIEW:
 		if review := apiSetting.GetReviewSetting(); review != nil {

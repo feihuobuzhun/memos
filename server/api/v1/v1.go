@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"sync"
 
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -102,6 +103,14 @@ type APIV1Service struct {
 	// assistantCompleterOverride replaces the chat client an assistant review
 	// uses. Only tests set it.
 	assistantCompleterOverride func(ai.ProviderConfig) (chat.Completer, error)
+
+	// diaryMoodWriteMu serializes the read-modify-write of one user's stored
+	// diary readings, which all live in a single setting row.
+	diaryMoodWriteMu sync.Mutex
+
+	// diaryMoodCompleterOverride replaces the chat client a diary reading uses.
+	// Only tests set it.
+	diaryMoodCompleterOverride func(ai.ProviderConfig) (chat.Completer, error)
 }
 
 // NewAPIV1Service creates an API v1 service with its shared dependencies.
