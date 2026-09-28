@@ -249,6 +249,85 @@ Files: `proto/api/v1/memo_service.proto`,
 `web/src/components/ReferenceGraph/`,
 `web/src/components/MemoActionMenu/MemoActionMenu.tsx`.
 
+### Diary
+
+A diary entry is an ordinary memo that happens to carry a tag you chose for it.
+Nothing about it is a special kind of record: it stays in the timeline, in
+search, in the calendar and in its tag, and `/diary` is simply the page that
+shows only those memos, laid out the way a moments feed is laid out rather than
+as a wall of cards.
+
+- **Which tags count is a setting**, not a constant. The diary's own settings
+  dialog picks from the tags you already write with, and a tag can be typed in
+  before it has ever been used. Choosing nothing does not mean "no diary": it
+  falls back to `日记` and `diary`, the same defaults the server uses, and the
+  page header always states which tags it is reading. Tag membership reaches
+  nested children, so `diary` also brings in `diary/travel`.
+- **The feed is grouped by local day.** Each day gets a sticky header naming it
+  — today and yesterday by name, everything older by date — and its entries are
+  rendered with the ordinary memo body, so attachments, references, reactions
+  and the ⋯ menu all behave as they do everywhere else.
+- Writing is seeded: the composer at the top of the page starts with the first
+  configured tag, so a new entry lands in the diary you are looking at.
+
+#### Emotion diary
+
+A day can be read by an AI and given a mood: a label, an emoji, a score from
+-100 to 100, a sentence addressed to the author, and up to five phrases naming
+what the day turned on. The last two weeks are shown as a strip of one cell per
+day above the feed, so the diary reads as a run of moods and not only as a list
+of entries.
+
+**Configuration is split in two,** because the two decisions belong to
+different people. An admin points the feature at a provider, model and prompt
+in Settings → AI (`InstanceAISetting.diary_mood`), which is where the API keys
+already live. Each reader then keeps a switch of their own in the diary
+settings, and a reader who turns it off is never read, however the instance is
+configured. A client learns whether a reading is possible at all from
+`ListDiaryMoods.available`, since the AI setting itself is admin-only.
+
+**Nothing is read behind your back and nothing is paid for twice.**
+
+- `ListDiaryMoods` only returns readings already stored; it never calls a
+  provider. Rendering the diary therefore costs nothing.
+- `AnalyzeDiaryMood` stores a `source_digest` over the day, the model and the
+  prompt, plus each entry's id and update time. Asking for an unchanged day
+  returns the stored reading untouched; `force` is how a reader deliberately
+  asks for a second opinion. Editing the day, or an admin changing the model or
+  the prompt, is what makes a day worth reading again.
+- The web client reads a day automatically only within 31 days of today, one
+  day at a time, and attempts a given date once per session — so a diary opened
+  after a long absence, or a provider that is down, cannot turn scrolling into
+  a burst of provider calls. Older days are read when asked for.
+- Readings are rate limited per user (60/hour), and an empty day is answered
+  without calling anything.
+
+**The day is the writer's day.** The client sends its own UTC offset with the
+request, so the window a reading covers is the author's midnight-to-midnight,
+not the server's.
+
+**Readings are stored in a user setting** (`UserSetting.DIARY_MOODS`), newest
+first, pruned to the most recent 730 days, rather than in a new table. A
+reading is derived data that can always be taken again, and the store carries
+three SQL drivers whose migrations cannot all be exercised locally; the
+refresh-token and memo-view settings set the same precedent.
+
+**The model is asked for JSON** and its answer is bounded on every axis: the
+label, emoji, summary and keywords are truncated, the score is clamped, and a
+reply that is not usable JSON fails the request instead of storing something
+that only looks like a reading. The built-in prompt asks for the diary's own
+language, and it forbids advice and diagnosis — the point is to name what was
+written, not to counsel the person who wrote it.
+
+Files: `proto/store/user_setting.proto`, `proto/store/instance_setting.proto`,
+`proto/api/v1/user_service.proto`, `proto/api/v1/instance_service.proto`,
+`proto/api/v1/memo_service.proto` (`ListDiaryMoods`, `AnalyzeDiaryMood`),
+`server/api/v1/user_diary_setting.go`, `server/api/v1/memo_service_diary.go`,
+`server/api/v1/instance_ai_diary_mood.go`, `web/src/lib/diary.ts`,
+`web/src/hooks/useDiaryQueries.ts`, `web/src/components/DiaryView/`,
+`web/src/pages/Diary.tsx`,
+`web/src/components/Settings/AISection.tsx`.
+
 ## Development
 
 The backend needs Go (see `go.mod`) and the frontend needs Node and pnpm.
