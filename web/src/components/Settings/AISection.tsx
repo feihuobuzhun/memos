@@ -11,6 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useInstance } from "@/contexts/InstanceContext";
 import {
@@ -18,6 +19,8 @@ import {
   InstanceSetting_AIProviderConfigSchema,
   InstanceSetting_AIProviderType,
   InstanceSetting_AISettingSchema,
+  InstanceSetting_DiaryMoodConfig,
+  InstanceSetting_DiaryMoodConfigSchema,
   InstanceSetting_Key,
   InstanceSetting_TranscriptionConfig,
   InstanceSetting_TranscriptionConfigSchema,
@@ -44,6 +47,13 @@ type LocalTranscription = {
   providerId: string;
   model: string;
   language: string;
+  prompt: string;
+};
+
+type LocalDiaryMood = {
+  enabled: boolean;
+  providerId: string;
+  model: string;
   prompt: string;
 };
 
@@ -74,6 +84,13 @@ const toLocalTranscription = (config: InstanceSetting_TranscriptionConfig | unde
   prompt: config?.prompt ?? "",
 });
 
+const toLocalDiaryMood = (config: InstanceSetting_DiaryMoodConfig | undefined): LocalDiaryMood => ({
+  enabled: config?.enabled ?? false,
+  providerId: config?.providerId ?? "",
+  model: config?.model ?? "",
+  prompt: config?.prompt ?? "",
+});
+
 const newProvider = (): LocalAIProvider => ({
   id: uuidv4(),
   title: "",
@@ -101,12 +118,21 @@ const toTranscriptionConfig = (transcription: LocalTranscription) =>
     prompt: transcription.prompt,
   });
 
+const toDiaryMoodConfig = (diaryMood: LocalDiaryMood) =>
+  create(InstanceSetting_DiaryMoodConfigSchema, {
+    enabled: diaryMood.enabled,
+    providerId: diaryMood.providerId,
+    model: diaryMood.model.trim(),
+    prompt: diaryMood.prompt.trim(),
+  });
+
 const AISection = () => {
   const t = useTranslate();
   const saveInstanceSetting = useInstanceSettingUpdater();
   const { aiSetting: originalSetting } = useInstance();
   const [providers, setProviders] = useState<LocalAIProvider[]>(() => originalSetting.providers.map(toLocalProvider));
   const [transcription, setTranscription] = useState<LocalTranscription>(() => toLocalTranscription(originalSetting.transcription));
+  const [diaryMood, setDiaryMood] = useState<LocalDiaryMood>(() => toLocalDiaryMood(originalSetting.diaryMood));
   const [editingProvider, setEditingProvider] = useState<LocalAIProvider | undefined>();
   const [deleteTarget, setDeleteTarget] = useState<LocalAIProvider | undefined>();
 
@@ -135,12 +161,31 @@ const AISection = () => {
     [providers, transcription.providerId],
   );
 
-  // Persists the AI setting using a specific providers list and transcription
-  // value. Provider operations pass originalSetting.transcription so an
-  // in-progress transcription draft is never accidentally committed.
+  // The diary mood draft is protected the same way: saving a provider must not
+  // discard a half-written mood configuration.
+  const lastSyncedDiaryMood = useRef<LocalDiaryMood>(toLocalDiaryMood(originalSetting.diaryMood));
+  useEffect(() => {
+    const next = toLocalDiaryMood(originalSetting.diaryMood);
+    if (!isEqual(lastSyncedDiaryMood.current, next)) {
+      setDiaryMood(next);
+      lastSyncedDiaryMood.current = next;
+    }
+  }, [originalSetting.diaryMood]);
+
+  const originalDiaryMood = useMemo(() => toLocalDiaryMood(originalSetting.diaryMood), [originalSetting.diaryMood]);
+  const diaryMoodHasChanges = !isEqual(diaryMood, originalDiaryMood);
+  const diaryMoodProviderRef = useMemo(
+    () => providers.find((provider) => provider.id === diaryMood.providerId),
+    [providers, diaryMood.providerId],
+  );
+
+  // Persists the AI setting using a specific providers list, transcription and
+  // diary mood value. Provider operations pass the stored feature configs so an
+  // in-progress draft of either is never accidentally committed.
   const persistAISetting = async (
     nextProviders: LocalAIProvider[],
     nextTranscription: InstanceSetting_TranscriptionConfig | undefined,
+    nextDiaryMood: InstanceSetting_DiaryMoodConfig | undefined,
     errorContext: string,
   ) => {
     return saveInstanceSetting({
@@ -152,6 +197,7 @@ const AISection = () => {
           value: create(InstanceSetting_AISettingSchema, {
             providers: nextProviders.map(toProviderConfig),
             transcription: nextTranscription,
+            diaryMood: nextDiaryMood,
           }),
         },
       }),
@@ -186,7 +232,7 @@ const AISection = () => {
       ? providers.map((item) => (item.id === normalizedProvider.id ? normalizedProvider : item))
       : [...providers, normalizedProvider];
 
-    const ok = await persistAISetting(nextProviders, originalSetting.transcription, "Update AI provider");
+    const ok = await persistAISetting(nextProviders, originalSetting.transcription, originalSetting.diaryMood, "Update AI provider");
     if (!ok) return;
     setProviders(nextProviders);
     setEditingProvider(undefined);
@@ -206,11 +252,22 @@ const AISection = () => {
         ? create(InstanceSetting_TranscriptionConfigSchema, {})
         : persistedTranscription;
 
-    const ok = await persistAISetting(nextProviders, nextTranscription, "Delete AI provider");
+    // A mood config pointing at the deleted provider would be rejected the same
+    // way, and an enabled one without a provider could never run.
+    const persistedDiaryMood = originalSetting.diaryMood;
+    const nextDiaryMood =
+      persistedDiaryMood && persistedDiaryMood.providerId === target.id
+        ? create(InstanceSetting_DiaryMoodConfigSchema, { prompt: persistedDiaryMood.prompt, model: persistedDiaryMood.model })
+        : persistedDiaryMood;
+
+    const ok = await persistAISetting(nextProviders, nextTranscription, nextDiaryMood, "Delete AI provider");
     if (!ok) return;
     setProviders(nextProviders);
     if (transcription.providerId === target.id) {
       setTranscription((prev) => ({ ...prev, providerId: "" }));
+    }
+    if (diaryMood.providerId === target.id) {
+      setDiaryMood((prev) => ({ ...prev, providerId: "", enabled: false }));
     }
     setDeleteTarget(undefined);
   };
@@ -220,7 +277,19 @@ const AISection = () => {
       toast.error(t("setting.ai.transcription-empty-providers"));
       return;
     }
-    await persistAISetting(providers, toTranscriptionConfig(transcription), "Update transcription");
+    await persistAISetting(providers, toTranscriptionConfig(transcription), originalSetting.diaryMood, "Update transcription");
+  };
+
+  const handleSaveDiaryMood = async () => {
+    if (diaryMood.providerId && !diaryMoodProviderRef) {
+      toast.error(t("setting.ai.diary-mood-empty-providers"));
+      return;
+    }
+    if (diaryMood.enabled && !diaryMood.providerId) {
+      toast.error(t("setting.ai.diary-mood-provider-required"));
+      return;
+    }
+    await persistAISetting(providers, originalSetting.transcription, toDiaryMoodConfig(diaryMood), "Update diary mood");
   };
 
   return (
@@ -326,6 +395,19 @@ const AISection = () => {
           onChange={setTranscription}
           referencedProvider={transcriptionProviderRef}
         />
+      </SettingGroup>
+
+      <SettingGroup
+        title={t("setting.ai.diary-mood-title")}
+        description={t("setting.ai.diary-mood-description")}
+        showSeparator
+        actions={
+          <Button disabled={!diaryMoodHasChanges} onClick={handleSaveDiaryMood}>
+            {t("common.save")}
+          </Button>
+        }
+      >
+        <DiaryMoodForm providers={providers} diaryMood={diaryMood} onChange={setDiaryMood} referencedProvider={diaryMoodProviderRef} />
       </SettingGroup>
 
       <AIProviderDialog
@@ -439,6 +521,107 @@ const TranscriptionForm = ({ providers, transcription, referencedProvider, onCha
           maxLength={4096}
         />
         <p className="text-xs text-muted-foreground">{t("setting.ai.transcription-prompt-help")}</p>
+      </div>
+    </div>
+  );
+};
+
+interface DiaryMoodFormProps {
+  providers: LocalAIProvider[];
+  diaryMood: LocalDiaryMood;
+  referencedProvider: LocalAIProvider | undefined;
+  onChange: (next: LocalDiaryMood) => void;
+}
+
+/**
+ * The instance's side of the emotion diary. Readings are a paid provider call,
+ * so nothing happens until an admin points this at a provider and turns it on;
+ * each reader then keeps their own switch in the diary's own settings.
+ */
+const DiaryMoodForm = ({ providers, diaryMood, referencedProvider, onChange }: DiaryMoodFormProps) => {
+  const t = useTranslate();
+  const noProviders = providers.length === 0;
+
+  const providerOptions = useMemo(
+    () => [
+      { value: "__none__", label: t("setting.ai.diary-mood-no-provider") },
+      ...providers.map((provider) => ({ value: provider.id, label: provider.title || provider.id })),
+    ],
+    [providers, t],
+  );
+
+  const update = (partial: Partial<LocalDiaryMood>) => {
+    onChange({ ...diaryMood, ...partial });
+  };
+
+  return (
+    <div className="grid max-w-3xl grid-cols-1 gap-3">
+      <div className="flex items-start justify-between gap-3 rounded-lg border bg-card px-3 py-2.5">
+        <div className="min-w-0">
+          <p className="text-sm text-foreground">{t("setting.ai.diary-mood-enabled")}</p>
+          <p className="text-xs text-muted-foreground">{t("setting.ai.diary-mood-enabled-help")}</p>
+        </div>
+        <Switch
+          aria-label={t("setting.ai.diary-mood-enabled")}
+          checked={diaryMood.enabled}
+          disabled={!diaryMood.providerId}
+          onCheckedChange={(checked) => update({ enabled: checked })}
+        />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label>{t("setting.ai.diary-mood-provider")}</Label>
+        <Select
+          value={diaryMood.providerId || "__none__"}
+          items={providerOptions}
+          onValueChange={(value) => {
+            const providerId = value === "__none__" ? "" : value;
+            // An enabled reading with nowhere to send it is a state the server
+            // rejects, so clearing the provider clears the switch with it.
+            update({ providerId, enabled: providerId ? diaryMood.enabled : false });
+          }}
+          disabled={noProviders}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {providerOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {noProviders && <p className="text-xs text-muted-foreground">{t("setting.ai.diary-mood-empty-providers")}</p>}
+        {referencedProvider && !referencedProvider.apiKeySet && (
+          <p className="text-xs text-destructive">{t("setting.ai.diary-mood-warning-no-key")}</p>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label>{t("setting.ai.diary-mood-model")}</Label>
+        <Input
+          value={diaryMood.model}
+          onChange={(e) => update({ model: e.target.value })}
+          placeholder={t("setting.ai.diary-mood-model-placeholder")}
+          disabled={!diaryMood.providerId}
+          maxLength={128}
+        />
+        <p className="text-xs text-muted-foreground">{t("setting.ai.diary-mood-model-help")}</p>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label>{t("setting.ai.diary-mood-prompt")}</Label>
+        <Textarea
+          value={diaryMood.prompt}
+          onChange={(e) => update({ prompt: e.target.value })}
+          placeholder={t("setting.ai.diary-mood-prompt-placeholder")}
+          rows={3}
+          disabled={!diaryMood.providerId}
+          maxLength={8000}
+        />
+        <p className="text-xs text-muted-foreground">{t("setting.ai.diary-mood-prompt-help")}</p>
       </div>
     </div>
   );
