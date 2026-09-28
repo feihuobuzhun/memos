@@ -41,6 +41,8 @@ const (
 	MemoService_GetLinkMetadata_FullMethodName       = "/memos.api.v1.MemoService/GetLinkMetadata"
 	MemoService_ListReviewMemos_FullMethodName       = "/memos.api.v1.MemoService/ListReviewMemos"
 	MemoService_GetMemoReferenceGraph_FullMethodName = "/memos.api.v1.MemoService/GetMemoReferenceGraph"
+	MemoService_ListDiaryMoods_FullMethodName        = "/memos.api.v1.MemoService/ListDiaryMoods"
+	MemoService_AnalyzeDiaryMood_FullMethodName      = "/memos.api.v1.MemoService/AnalyzeDiaryMood"
 	MemoService_BatchGetLinkMetadata_FullMethodName  = "/memos.api.v1.MemoService/BatchGetLinkMetadata"
 )
 
@@ -105,6 +107,14 @@ type MemoServiceClient interface {
 	// returns the subgraph it reaches, so a client can draw the neighbourhood
 	// without a request per node. Only memos the caller may read appear.
 	GetMemoReferenceGraph(ctx context.Context, in *GetMemoReferenceGraphRequest, opts ...grpc.CallOption) (*GetMemoReferenceGraphResponse, error)
+	// ListDiaryMoods returns the mood readings already taken of the caller's
+	// diary days inside a date range. It never calls a provider, so a client can
+	// render the diary without paying for a reading.
+	ListDiaryMoods(ctx context.Context, in *ListDiaryMoodsRequest, opts ...grpc.CallOption) (*ListDiaryMoodsResponse, error)
+	// AnalyzeDiaryMood reads one diary day's mood and stores the result. The
+	// stored reading is returned unchanged when nothing about the day has
+	// changed since it was taken, so repeating the call is cheap.
+	AnalyzeDiaryMood(ctx context.Context, in *AnalyzeDiaryMoodRequest, opts ...grpc.CallOption) (*AnalyzeDiaryMoodResponse, error)
 	// BatchGetLinkMetadata gets metadata for links.
 	BatchGetLinkMetadata(ctx context.Context, in *BatchGetLinkMetadataRequest, opts ...grpc.CallOption) (*BatchGetLinkMetadataResponse, error)
 }
@@ -327,6 +337,26 @@ func (c *memoServiceClient) GetMemoReferenceGraph(ctx context.Context, in *GetMe
 	return out, nil
 }
 
+func (c *memoServiceClient) ListDiaryMoods(ctx context.Context, in *ListDiaryMoodsRequest, opts ...grpc.CallOption) (*ListDiaryMoodsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListDiaryMoodsResponse)
+	err := c.cc.Invoke(ctx, MemoService_ListDiaryMoods_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *memoServiceClient) AnalyzeDiaryMood(ctx context.Context, in *AnalyzeDiaryMoodRequest, opts ...grpc.CallOption) (*AnalyzeDiaryMoodResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AnalyzeDiaryMoodResponse)
+	err := c.cc.Invoke(ctx, MemoService_AnalyzeDiaryMood_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *memoServiceClient) BatchGetLinkMetadata(ctx context.Context, in *BatchGetLinkMetadataRequest, opts ...grpc.CallOption) (*BatchGetLinkMetadataResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(BatchGetLinkMetadataResponse)
@@ -398,6 +428,14 @@ type MemoServiceServer interface {
 	// returns the subgraph it reaches, so a client can draw the neighbourhood
 	// without a request per node. Only memos the caller may read appear.
 	GetMemoReferenceGraph(context.Context, *GetMemoReferenceGraphRequest) (*GetMemoReferenceGraphResponse, error)
+	// ListDiaryMoods returns the mood readings already taken of the caller's
+	// diary days inside a date range. It never calls a provider, so a client can
+	// render the diary without paying for a reading.
+	ListDiaryMoods(context.Context, *ListDiaryMoodsRequest) (*ListDiaryMoodsResponse, error)
+	// AnalyzeDiaryMood reads one diary day's mood and stores the result. The
+	// stored reading is returned unchanged when nothing about the day has
+	// changed since it was taken, so repeating the call is cheap.
+	AnalyzeDiaryMood(context.Context, *AnalyzeDiaryMoodRequest) (*AnalyzeDiaryMoodResponse, error)
 	// BatchGetLinkMetadata gets metadata for links.
 	BatchGetLinkMetadata(context.Context, *BatchGetLinkMetadataRequest) (*BatchGetLinkMetadataResponse, error)
 	mustEmbedUnimplementedMemoServiceServer()
@@ -472,6 +510,12 @@ func (UnimplementedMemoServiceServer) ListReviewMemos(context.Context, *ListRevi
 }
 func (UnimplementedMemoServiceServer) GetMemoReferenceGraph(context.Context, *GetMemoReferenceGraphRequest) (*GetMemoReferenceGraphResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetMemoReferenceGraph not implemented")
+}
+func (UnimplementedMemoServiceServer) ListDiaryMoods(context.Context, *ListDiaryMoodsRequest) (*ListDiaryMoodsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListDiaryMoods not implemented")
+}
+func (UnimplementedMemoServiceServer) AnalyzeDiaryMood(context.Context, *AnalyzeDiaryMoodRequest) (*AnalyzeDiaryMoodResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method AnalyzeDiaryMood not implemented")
 }
 func (UnimplementedMemoServiceServer) BatchGetLinkMetadata(context.Context, *BatchGetLinkMetadataRequest) (*BatchGetLinkMetadataResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method BatchGetLinkMetadata not implemented")
@@ -875,6 +919,42 @@ func _MemoService_GetMemoReferenceGraph_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MemoService_ListDiaryMoods_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListDiaryMoodsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MemoServiceServer).ListDiaryMoods(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MemoService_ListDiaryMoods_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MemoServiceServer).ListDiaryMoods(ctx, req.(*ListDiaryMoodsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MemoService_AnalyzeDiaryMood_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AnalyzeDiaryMoodRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MemoServiceServer).AnalyzeDiaryMood(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MemoService_AnalyzeDiaryMood_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MemoServiceServer).AnalyzeDiaryMood(ctx, req.(*AnalyzeDiaryMoodRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _MemoService_BatchGetLinkMetadata_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(BatchGetLinkMetadataRequest)
 	if err := dec(in); err != nil {
@@ -983,6 +1063,14 @@ var MemoService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetMemoReferenceGraph",
 			Handler:    _MemoService_GetMemoReferenceGraph_Handler,
+		},
+		{
+			MethodName: "ListDiaryMoods",
+			Handler:    _MemoService_ListDiaryMoods_Handler,
+		},
+		{
+			MethodName: "AnalyzeDiaryMood",
+			Handler:    _MemoService_AnalyzeDiaryMood_Handler,
 		},
 		{
 			MethodName: "BatchGetLinkMetadata",

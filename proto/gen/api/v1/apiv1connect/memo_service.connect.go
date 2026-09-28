@@ -92,6 +92,12 @@ const (
 	// MemoServiceGetMemoReferenceGraphProcedure is the fully-qualified name of the MemoService's
 	// GetMemoReferenceGraph RPC.
 	MemoServiceGetMemoReferenceGraphProcedure = "/memos.api.v1.MemoService/GetMemoReferenceGraph"
+	// MemoServiceListDiaryMoodsProcedure is the fully-qualified name of the MemoService's
+	// ListDiaryMoods RPC.
+	MemoServiceListDiaryMoodsProcedure = "/memos.api.v1.MemoService/ListDiaryMoods"
+	// MemoServiceAnalyzeDiaryMoodProcedure is the fully-qualified name of the MemoService's
+	// AnalyzeDiaryMood RPC.
+	MemoServiceAnalyzeDiaryMoodProcedure = "/memos.api.v1.MemoService/AnalyzeDiaryMood"
 	// MemoServiceBatchGetLinkMetadataProcedure is the fully-qualified name of the MemoService's
 	// BatchGetLinkMetadata RPC.
 	MemoServiceBatchGetLinkMetadataProcedure = "/memos.api.v1.MemoService/BatchGetLinkMetadata"
@@ -156,6 +162,14 @@ type MemoServiceClient interface {
 	// returns the subgraph it reaches, so a client can draw the neighbourhood
 	// without a request per node. Only memos the caller may read appear.
 	GetMemoReferenceGraph(context.Context, *connect.Request[v1.GetMemoReferenceGraphRequest]) (*connect.Response[v1.GetMemoReferenceGraphResponse], error)
+	// ListDiaryMoods returns the mood readings already taken of the caller's
+	// diary days inside a date range. It never calls a provider, so a client can
+	// render the diary without paying for a reading.
+	ListDiaryMoods(context.Context, *connect.Request[v1.ListDiaryMoodsRequest]) (*connect.Response[v1.ListDiaryMoodsResponse], error)
+	// AnalyzeDiaryMood reads one diary day's mood and stores the result. The
+	// stored reading is returned unchanged when nothing about the day has
+	// changed since it was taken, so repeating the call is cheap.
+	AnalyzeDiaryMood(context.Context, *connect.Request[v1.AnalyzeDiaryMoodRequest]) (*connect.Response[v1.AnalyzeDiaryMoodResponse], error)
 	// BatchGetLinkMetadata gets metadata for links.
 	BatchGetLinkMetadata(context.Context, *connect.Request[v1.BatchGetLinkMetadataRequest]) (*connect.Response[v1.BatchGetLinkMetadataResponse], error)
 }
@@ -297,6 +311,18 @@ func NewMemoServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(memoServiceMethods.ByName("GetMemoReferenceGraph")),
 			connect.WithClientOptions(opts...),
 		),
+		listDiaryMoods: connect.NewClient[v1.ListDiaryMoodsRequest, v1.ListDiaryMoodsResponse](
+			httpClient,
+			baseURL+MemoServiceListDiaryMoodsProcedure,
+			connect.WithSchema(memoServiceMethods.ByName("ListDiaryMoods")),
+			connect.WithClientOptions(opts...),
+		),
+		analyzeDiaryMood: connect.NewClient[v1.AnalyzeDiaryMoodRequest, v1.AnalyzeDiaryMoodResponse](
+			httpClient,
+			baseURL+MemoServiceAnalyzeDiaryMoodProcedure,
+			connect.WithSchema(memoServiceMethods.ByName("AnalyzeDiaryMood")),
+			connect.WithClientOptions(opts...),
+		),
 		batchGetLinkMetadata: connect.NewClient[v1.BatchGetLinkMetadataRequest, v1.BatchGetLinkMetadataResponse](
 			httpClient,
 			baseURL+MemoServiceBatchGetLinkMetadataProcedure,
@@ -329,6 +355,8 @@ type memoServiceClient struct {
 	getLinkMetadata       *connect.Client[v1.GetLinkMetadataRequest, v1.LinkMetadata]
 	listReviewMemos       *connect.Client[v1.ListReviewMemosRequest, v1.ListReviewMemosResponse]
 	getMemoReferenceGraph *connect.Client[v1.GetMemoReferenceGraphRequest, v1.GetMemoReferenceGraphResponse]
+	listDiaryMoods        *connect.Client[v1.ListDiaryMoodsRequest, v1.ListDiaryMoodsResponse]
+	analyzeDiaryMood      *connect.Client[v1.AnalyzeDiaryMoodRequest, v1.AnalyzeDiaryMoodResponse]
 	batchGetLinkMetadata  *connect.Client[v1.BatchGetLinkMetadataRequest, v1.BatchGetLinkMetadataResponse]
 }
 
@@ -437,6 +465,16 @@ func (c *memoServiceClient) GetMemoReferenceGraph(ctx context.Context, req *conn
 	return c.getMemoReferenceGraph.CallUnary(ctx, req)
 }
 
+// ListDiaryMoods calls memos.api.v1.MemoService.ListDiaryMoods.
+func (c *memoServiceClient) ListDiaryMoods(ctx context.Context, req *connect.Request[v1.ListDiaryMoodsRequest]) (*connect.Response[v1.ListDiaryMoodsResponse], error) {
+	return c.listDiaryMoods.CallUnary(ctx, req)
+}
+
+// AnalyzeDiaryMood calls memos.api.v1.MemoService.AnalyzeDiaryMood.
+func (c *memoServiceClient) AnalyzeDiaryMood(ctx context.Context, req *connect.Request[v1.AnalyzeDiaryMoodRequest]) (*connect.Response[v1.AnalyzeDiaryMoodResponse], error) {
+	return c.analyzeDiaryMood.CallUnary(ctx, req)
+}
+
 // BatchGetLinkMetadata calls memos.api.v1.MemoService.BatchGetLinkMetadata.
 func (c *memoServiceClient) BatchGetLinkMetadata(ctx context.Context, req *connect.Request[v1.BatchGetLinkMetadataRequest]) (*connect.Response[v1.BatchGetLinkMetadataResponse], error) {
 	return c.batchGetLinkMetadata.CallUnary(ctx, req)
@@ -501,6 +539,14 @@ type MemoServiceHandler interface {
 	// returns the subgraph it reaches, so a client can draw the neighbourhood
 	// without a request per node. Only memos the caller may read appear.
 	GetMemoReferenceGraph(context.Context, *connect.Request[v1.GetMemoReferenceGraphRequest]) (*connect.Response[v1.GetMemoReferenceGraphResponse], error)
+	// ListDiaryMoods returns the mood readings already taken of the caller's
+	// diary days inside a date range. It never calls a provider, so a client can
+	// render the diary without paying for a reading.
+	ListDiaryMoods(context.Context, *connect.Request[v1.ListDiaryMoodsRequest]) (*connect.Response[v1.ListDiaryMoodsResponse], error)
+	// AnalyzeDiaryMood reads one diary day's mood and stores the result. The
+	// stored reading is returned unchanged when nothing about the day has
+	// changed since it was taken, so repeating the call is cheap.
+	AnalyzeDiaryMood(context.Context, *connect.Request[v1.AnalyzeDiaryMoodRequest]) (*connect.Response[v1.AnalyzeDiaryMoodResponse], error)
 	// BatchGetLinkMetadata gets metadata for links.
 	BatchGetLinkMetadata(context.Context, *connect.Request[v1.BatchGetLinkMetadataRequest]) (*connect.Response[v1.BatchGetLinkMetadataResponse], error)
 }
@@ -638,6 +684,18 @@ func NewMemoServiceHandler(svc MemoServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(memoServiceMethods.ByName("GetMemoReferenceGraph")),
 		connect.WithHandlerOptions(opts...),
 	)
+	memoServiceListDiaryMoodsHandler := connect.NewUnaryHandler(
+		MemoServiceListDiaryMoodsProcedure,
+		svc.ListDiaryMoods,
+		connect.WithSchema(memoServiceMethods.ByName("ListDiaryMoods")),
+		connect.WithHandlerOptions(opts...),
+	)
+	memoServiceAnalyzeDiaryMoodHandler := connect.NewUnaryHandler(
+		MemoServiceAnalyzeDiaryMoodProcedure,
+		svc.AnalyzeDiaryMood,
+		connect.WithSchema(memoServiceMethods.ByName("AnalyzeDiaryMood")),
+		connect.WithHandlerOptions(opts...),
+	)
 	memoServiceBatchGetLinkMetadataHandler := connect.NewUnaryHandler(
 		MemoServiceBatchGetLinkMetadataProcedure,
 		svc.BatchGetLinkMetadata,
@@ -688,6 +746,10 @@ func NewMemoServiceHandler(svc MemoServiceHandler, opts ...connect.HandlerOption
 			memoServiceListReviewMemosHandler.ServeHTTP(w, r)
 		case MemoServiceGetMemoReferenceGraphProcedure:
 			memoServiceGetMemoReferenceGraphHandler.ServeHTTP(w, r)
+		case MemoServiceListDiaryMoodsProcedure:
+			memoServiceListDiaryMoodsHandler.ServeHTTP(w, r)
+		case MemoServiceAnalyzeDiaryMoodProcedure:
+			memoServiceAnalyzeDiaryMoodHandler.ServeHTTP(w, r)
 		case MemoServiceBatchGetLinkMetadataProcedure:
 			memoServiceBatchGetLinkMetadataHandler.ServeHTTP(w, r)
 		default:
@@ -781,6 +843,14 @@ func (UnimplementedMemoServiceHandler) ListReviewMemos(context.Context, *connect
 
 func (UnimplementedMemoServiceHandler) GetMemoReferenceGraph(context.Context, *connect.Request[v1.GetMemoReferenceGraphRequest]) (*connect.Response[v1.GetMemoReferenceGraphResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memos.api.v1.MemoService.GetMemoReferenceGraph is not implemented"))
+}
+
+func (UnimplementedMemoServiceHandler) ListDiaryMoods(context.Context, *connect.Request[v1.ListDiaryMoodsRequest]) (*connect.Response[v1.ListDiaryMoodsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memos.api.v1.MemoService.ListDiaryMoods is not implemented"))
+}
+
+func (UnimplementedMemoServiceHandler) AnalyzeDiaryMood(context.Context, *connect.Request[v1.AnalyzeDiaryMoodRequest]) (*connect.Response[v1.AnalyzeDiaryMoodResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memos.api.v1.MemoService.AnalyzeDiaryMood is not implemented"))
 }
 
 func (UnimplementedMemoServiceHandler) BatchGetLinkMetadata(context.Context, *connect.Request[v1.BatchGetLinkMetadataRequest]) (*connect.Response[v1.BatchGetLinkMetadataResponse], error) {
