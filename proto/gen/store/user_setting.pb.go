@@ -41,19 +41,25 @@ const (
 	UserSetting_TAGS UserSetting_Key = 8
 	// The daily review preferences of the user.
 	UserSetting_REVIEW UserSetting_Key = 9
+	// The diary preferences of the user.
+	UserSetting_DIARY UserSetting_Key = 10
+	// The AI readings of the user's diary days.
+	UserSetting_DIARY_MOODS UserSetting_Key = 11
 )
 
 // Enum value maps for UserSetting_Key.
 var (
 	UserSetting_Key_name = map[int32]string{
-		0: "KEY_UNSPECIFIED",
-		1: "GENERAL",
-		4: "MEMO_VIEWS",
-		5: "WEBHOOKS",
-		6: "REFRESH_TOKENS",
-		7: "PERSONAL_ACCESS_TOKENS",
-		8: "TAGS",
-		9: "REVIEW",
+		0:  "KEY_UNSPECIFIED",
+		1:  "GENERAL",
+		4:  "MEMO_VIEWS",
+		5:  "WEBHOOKS",
+		6:  "REFRESH_TOKENS",
+		7:  "PERSONAL_ACCESS_TOKENS",
+		8:  "TAGS",
+		9:  "REVIEW",
+		10: "DIARY",
+		11: "DIARY_MOODS",
 	}
 	UserSetting_Key_value = map[string]int32{
 		"KEY_UNSPECIFIED":        0,
@@ -64,6 +70,8 @@ var (
 		"PERSONAL_ACCESS_TOKENS": 7,
 		"TAGS":                   8,
 		"REVIEW":                 9,
+		"DIARY":                  10,
+		"DIARY_MOODS":            11,
 	}
 )
 
@@ -226,6 +234,8 @@ type UserSetting struct {
 	//	*UserSetting_PersonalAccessTokens
 	//	*UserSetting_Tags
 	//	*UserSetting_Review
+	//	*UserSetting_Diary
+	//	*UserSetting_DiaryMoods
 	Value         isUserSetting_Value `protobuf_oneof:"value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -345,6 +355,24 @@ func (x *UserSetting) GetReview() *ReviewUserSetting {
 	return nil
 }
 
+func (x *UserSetting) GetDiary() *DiaryUserSetting {
+	if x != nil {
+		if x, ok := x.Value.(*UserSetting_Diary); ok {
+			return x.Diary
+		}
+	}
+	return nil
+}
+
+func (x *UserSetting) GetDiaryMoods() *DiaryMoodsUserSetting {
+	if x != nil {
+		if x, ok := x.Value.(*UserSetting_DiaryMoods); ok {
+			return x.DiaryMoods
+		}
+	}
+	return nil
+}
+
 type isUserSetting_Value interface {
 	isUserSetting_Value()
 }
@@ -377,6 +405,14 @@ type UserSetting_Review struct {
 	Review *ReviewUserSetting `protobuf:"bytes,11,opt,name=review,proto3,oneof"`
 }
 
+type UserSetting_Diary struct {
+	Diary *DiaryUserSetting `protobuf:"bytes,12,opt,name=diary,proto3,oneof"`
+}
+
+type UserSetting_DiaryMoods struct {
+	DiaryMoods *DiaryMoodsUserSetting `protobuf:"bytes,13,opt,name=diary_moods,json=diaryMoods,proto3,oneof"`
+}
+
 func (*UserSetting_General) isUserSetting_Value() {}
 
 func (*UserSetting_MemoViews) isUserSetting_Value() {}
@@ -390,6 +426,10 @@ func (*UserSetting_PersonalAccessTokens) isUserSetting_Value() {}
 func (*UserSetting_Tags) isUserSetting_Value() {}
 
 func (*UserSetting_Review) isUserSetting_Value() {}
+
+func (*UserSetting_Diary) isUserSetting_Value() {}
+
+func (*UserSetting_DiaryMoods) isUserSetting_Value() {}
 
 type GeneralUserSetting struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -826,6 +866,242 @@ func (x *ReviewUserSetting) GetDailyCount() int32 {
 	return 0
 }
 
+// DiaryUserSetting configures the user's diary: which of their memos are diary
+// entries, and whether each day is read for its mood.
+type DiaryUserSetting struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// tags mark a memo as a diary entry. A memo matches when it carries one of
+	// these tags or a nested child of it, so "diary" also reaches "diary/travel".
+	// Stored in bare form, without a leading "#". An empty list means the diary
+	// falls back to the built-in default tags.
+	Tags []string `protobuf:"bytes,1,rep,name=tags,proto3" json:"tags,omitempty"`
+	// mood_analysis asks the configured provider to read each diary day's mood.
+	// Absent means enabled, so a reader who never opened the settings still gets
+	// whatever the instance configured.
+	MoodAnalysis  *bool `protobuf:"varint,2,opt,name=mood_analysis,json=moodAnalysis,proto3,oneof" json:"mood_analysis,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DiaryUserSetting) Reset() {
+	*x = DiaryUserSetting{}
+	mi := &file_store_user_setting_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DiaryUserSetting) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiaryUserSetting) ProtoMessage() {}
+
+func (x *DiaryUserSetting) ProtoReflect() protoreflect.Message {
+	mi := &file_store_user_setting_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiaryUserSetting.ProtoReflect.Descriptor instead.
+func (*DiaryUserSetting) Descriptor() ([]byte, []int) {
+	return file_store_user_setting_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *DiaryUserSetting) GetTags() []string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
+}
+
+func (x *DiaryUserSetting) GetMoodAnalysis() bool {
+	if x != nil && x.MoodAnalysis != nil {
+		return *x.MoodAnalysis
+	}
+	return false
+}
+
+// DiaryMoodsUserSetting holds the readings already taken of the user's diary
+// days, newest day first. A reading is derived from the memos of one day and
+// can always be taken again, so the list is pruned instead of kept forever.
+type DiaryMoodsUserSetting struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Moods         []*DiaryMood           `protobuf:"bytes,1,rep,name=moods,proto3" json:"moods,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DiaryMoodsUserSetting) Reset() {
+	*x = DiaryMoodsUserSetting{}
+	mi := &file_store_user_setting_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DiaryMoodsUserSetting) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiaryMoodsUserSetting) ProtoMessage() {}
+
+func (x *DiaryMoodsUserSetting) ProtoReflect() protoreflect.Message {
+	mi := &file_store_user_setting_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiaryMoodsUserSetting.ProtoReflect.Descriptor instead.
+func (*DiaryMoodsUserSetting) Descriptor() ([]byte, []int) {
+	return file_store_user_setting_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *DiaryMoodsUserSetting) GetMoods() []*DiaryMood {
+	if x != nil {
+		return x.Moods
+	}
+	return nil
+}
+
+// DiaryMood is one diary day read for its mood.
+type DiaryMood struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// date is the author's own calendar day, formatted "YYYY-MM-DD".
+	Date string `protobuf:"bytes,1,opt,name=date,proto3" json:"date,omitempty"`
+	// label is a short mood name, written in the language of the day's memos.
+	Label string `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
+	// emoji is a single emoji standing for the mood.
+	Emoji string `protobuf:"bytes,3,opt,name=emoji,proto3" json:"emoji,omitempty"`
+	// score is how bright the day reads, from -100 to 100.
+	Score int32 `protobuf:"varint,4,opt,name=score,proto3" json:"score,omitempty"`
+	// summary is a sentence or two addressed to the author.
+	Summary string `protobuf:"bytes,5,opt,name=summary,proto3" json:"summary,omitempty"`
+	// keywords are the few themes the day turned on.
+	Keywords []string `protobuf:"bytes,6,rep,name=keywords,proto3" json:"keywords,omitempty"`
+	// memo_count is how many diary memos the reading was taken from.
+	MemoCount int32 `protobuf:"varint,7,opt,name=memo_count,json=memoCount,proto3" json:"memo_count,omitempty"`
+	// source_digest identifies the exact memos and revisions behind the reading,
+	// so an unchanged day is never read twice.
+	SourceDigest string `protobuf:"bytes,8,opt,name=source_digest,json=sourceDigest,proto3" json:"source_digest,omitempty"`
+	// model records which model produced the reading.
+	Model string `protobuf:"bytes,9,opt,name=model,proto3" json:"model,omitempty"`
+	// updated_ts is when the reading was taken, in seconds since the epoch.
+	UpdatedTs     int64 `protobuf:"varint,10,opt,name=updated_ts,json=updatedTs,proto3" json:"updated_ts,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DiaryMood) Reset() {
+	*x = DiaryMood{}
+	mi := &file_store_user_setting_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DiaryMood) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiaryMood) ProtoMessage() {}
+
+func (x *DiaryMood) ProtoReflect() protoreflect.Message {
+	mi := &file_store_user_setting_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiaryMood.ProtoReflect.Descriptor instead.
+func (*DiaryMood) Descriptor() ([]byte, []int) {
+	return file_store_user_setting_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *DiaryMood) GetDate() string {
+	if x != nil {
+		return x.Date
+	}
+	return ""
+}
+
+func (x *DiaryMood) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *DiaryMood) GetEmoji() string {
+	if x != nil {
+		return x.Emoji
+	}
+	return ""
+}
+
+func (x *DiaryMood) GetScore() int32 {
+	if x != nil {
+		return x.Score
+	}
+	return 0
+}
+
+func (x *DiaryMood) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
+func (x *DiaryMood) GetKeywords() []string {
+	if x != nil {
+		return x.Keywords
+	}
+	return nil
+}
+
+func (x *DiaryMood) GetMemoCount() int32 {
+	if x != nil {
+		return x.MemoCount
+	}
+	return 0
+}
+
+func (x *DiaryMood) GetSourceDigest() string {
+	if x != nil {
+		return x.SourceDigest
+	}
+	return ""
+}
+
+func (x *DiaryMood) GetModel() string {
+	if x != nil {
+		return x.Model
+	}
+	return ""
+}
+
+func (x *DiaryMood) GetUpdatedTs() int64 {
+	if x != nil {
+		return x.UpdatedTs
+	}
+	return 0
+}
+
 type UserTagMetadata_Icon struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Value:
@@ -839,7 +1115,7 @@ type UserTagMetadata_Icon struct {
 
 func (x *UserTagMetadata_Icon) Reset() {
 	*x = UserTagMetadata_Icon{}
-	mi := &file_store_user_setting_proto_msgTypes[9]
+	mi := &file_store_user_setting_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -851,7 +1127,7 @@ func (x *UserTagMetadata_Icon) String() string {
 func (*UserTagMetadata_Icon) ProtoMessage() {}
 
 func (x *UserTagMetadata_Icon) ProtoReflect() protoreflect.Message {
-	mi := &file_store_user_setting_proto_msgTypes[9]
+	mi := &file_store_user_setting_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -928,7 +1204,7 @@ type RefreshTokensUserSetting_RefreshToken struct {
 
 func (x *RefreshTokensUserSetting_RefreshToken) Reset() {
 	*x = RefreshTokensUserSetting_RefreshToken{}
-	mi := &file_store_user_setting_proto_msgTypes[11]
+	mi := &file_store_user_setting_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -940,7 +1216,7 @@ func (x *RefreshTokensUserSetting_RefreshToken) String() string {
 func (*RefreshTokensUserSetting_RefreshToken) ProtoMessage() {}
 
 func (x *RefreshTokensUserSetting_RefreshToken) ProtoReflect() protoreflect.Message {
-	mi := &file_store_user_setting_proto_msgTypes[11]
+	mi := &file_store_user_setting_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1009,7 +1285,7 @@ type RefreshTokensUserSetting_ClientInfo struct {
 
 func (x *RefreshTokensUserSetting_ClientInfo) Reset() {
 	*x = RefreshTokensUserSetting_ClientInfo{}
-	mi := &file_store_user_setting_proto_msgTypes[12]
+	mi := &file_store_user_setting_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1021,7 +1297,7 @@ func (x *RefreshTokensUserSetting_ClientInfo) String() string {
 func (*RefreshTokensUserSetting_ClientInfo) ProtoMessage() {}
 
 func (x *RefreshTokensUserSetting_ClientInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_store_user_setting_proto_msgTypes[12]
+	mi := &file_store_user_setting_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1092,7 +1368,7 @@ type PersonalAccessTokensUserSetting_PersonalAccessToken struct {
 
 func (x *PersonalAccessTokensUserSetting_PersonalAccessToken) Reset() {
 	*x = PersonalAccessTokensUserSetting_PersonalAccessToken{}
-	mi := &file_store_user_setting_proto_msgTypes[13]
+	mi := &file_store_user_setting_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1104,7 +1380,7 @@ func (x *PersonalAccessTokensUserSetting_PersonalAccessToken) String() string {
 func (*PersonalAccessTokensUserSetting_PersonalAccessToken) ProtoMessage() {}
 
 func (x *PersonalAccessTokensUserSetting_PersonalAccessToken) ProtoReflect() protoreflect.Message {
-	mi := &file_store_user_setting_proto_msgTypes[13]
+	mi := &file_store_user_setting_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1174,7 +1450,7 @@ type MemoViewsUserSetting_MemoView struct {
 
 func (x *MemoViewsUserSetting_MemoView) Reset() {
 	*x = MemoViewsUserSetting_MemoView{}
-	mi := &file_store_user_setting_proto_msgTypes[14]
+	mi := &file_store_user_setting_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1186,7 +1462,7 @@ func (x *MemoViewsUserSetting_MemoView) String() string {
 func (*MemoViewsUserSetting_MemoView) ProtoMessage() {}
 
 func (x *MemoViewsUserSetting_MemoView) ProtoReflect() protoreflect.Message {
-	mi := &file_store_user_setting_proto_msgTypes[14]
+	mi := &file_store_user_setting_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1243,7 +1519,7 @@ type MemoViewsUserSetting_MemoView_Icon struct {
 
 func (x *MemoViewsUserSetting_MemoView_Icon) Reset() {
 	*x = MemoViewsUserSetting_MemoView_Icon{}
-	mi := &file_store_user_setting_proto_msgTypes[15]
+	mi := &file_store_user_setting_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1255,7 +1531,7 @@ func (x *MemoViewsUserSetting_MemoView_Icon) String() string {
 func (*MemoViewsUserSetting_MemoView_Icon) ProtoMessage() {}
 
 func (x *MemoViewsUserSetting_MemoView_Icon) ProtoReflect() protoreflect.Message {
-	mi := &file_store_user_setting_proto_msgTypes[15]
+	mi := &file_store_user_setting_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1330,7 +1606,7 @@ type WebhooksUserSetting_Webhook struct {
 
 func (x *WebhooksUserSetting_Webhook) Reset() {
 	*x = WebhooksUserSetting_Webhook{}
-	mi := &file_store_user_setting_proto_msgTypes[16]
+	mi := &file_store_user_setting_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1342,7 +1618,7 @@ func (x *WebhooksUserSetting_Webhook) String() string {
 func (*WebhooksUserSetting_Webhook) ProtoMessage() {}
 
 func (x *WebhooksUserSetting_Webhook) ProtoReflect() protoreflect.Message {
-	mi := &file_store_user_setting_proto_msgTypes[16]
+	mi := &file_store_user_setting_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1390,7 +1666,7 @@ var File_store_user_setting_proto protoreflect.FileDescriptor
 
 const file_store_user_setting_proto_rawDesc = "" +
 	"\n" +
-	"\x18store/user_setting.proto\x12\vmemos.store\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x17google/type/color.proto\"\xd2\x05\n" +
+	"\x18store/user_setting.proto\x12\vmemos.store\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x17google/type/color.proto\"\xec\x06\n" +
 	"\vUserSetting\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\x05R\x06userId\x12.\n" +
 	"\x03key\x18\x02 \x01(\x0e2\x1c.memos.store.UserSetting.KeyR\x03key\x12;\n" +
@@ -1402,7 +1678,10 @@ const file_store_user_setting_proto_rawDesc = "" +
 	"\x16personal_access_tokens\x18\t \x01(\v2,.memos.store.PersonalAccessTokensUserSettingH\x00R\x14personalAccessTokens\x122\n" +
 	"\x04tags\x18\n" +
 	" \x01(\v2\x1c.memos.store.TagsUserSettingH\x00R\x04tags\x128\n" +
-	"\x06review\x18\v \x01(\v2\x1e.memos.store.ReviewUserSettingH\x00R\x06review\"\x8b\x01\n" +
+	"\x06review\x18\v \x01(\v2\x1e.memos.store.ReviewUserSettingH\x00R\x06review\x125\n" +
+	"\x05diary\x18\f \x01(\v2\x1d.memos.store.DiaryUserSettingH\x00R\x05diary\x12E\n" +
+	"\vdiary_moods\x18\r \x01(\v2\".memos.store.DiaryMoodsUserSettingH\x00R\n" +
+	"diaryMoods\"\xa7\x01\n" +
 	"\x03Key\x12\x13\n" +
 	"\x0fKEY_UNSPECIFIED\x10\x00\x12\v\n" +
 	"\aGENERAL\x10\x01\x12\x0e\n" +
@@ -1413,7 +1692,10 @@ const file_store_user_setting_proto_rawDesc = "" +
 	"\x16PERSONAL_ACCESS_TOKENS\x10\a\x12\b\n" +
 	"\x04TAGS\x10\b\x12\n" +
 	"\n" +
-	"\x06REVIEW\x10\tB\a\n" +
+	"\x06REVIEW\x10\t\x12\t\n" +
+	"\x05DIARY\x10\n" +
+	"\x12\x0f\n" +
+	"\vDIARY_MOODS\x10\vB\a\n" +
 	"\x05value\"\x9b\x01\n" +
 	"\x12GeneralUserSetting\x12\x16\n" +
 	"\x06locale\x18\x01 \x01(\tR\x06locale\x12'\n" +
@@ -1506,7 +1788,27 @@ const file_store_user_setting_proto_rawDesc = "" +
 	"LAST_MONTH\x10\x02\x12\x11\n" +
 	"\rLAST_3_MONTHS\x10\x03\x12\x11\n" +
 	"\rLAST_6_MONTHS\x10\x04\x12\r\n" +
-	"\tLAST_YEAR\x10\x05B\x9b\x01\n" +
+	"\tLAST_YEAR\x10\x05\"b\n" +
+	"\x10DiaryUserSetting\x12\x12\n" +
+	"\x04tags\x18\x01 \x03(\tR\x04tags\x12(\n" +
+	"\rmood_analysis\x18\x02 \x01(\bH\x00R\fmoodAnalysis\x88\x01\x01B\x10\n" +
+	"\x0e_mood_analysis\"E\n" +
+	"\x15DiaryMoodsUserSetting\x12,\n" +
+	"\x05moods\x18\x01 \x03(\v2\x16.memos.store.DiaryMoodR\x05moods\"\x90\x02\n" +
+	"\tDiaryMood\x12\x12\n" +
+	"\x04date\x18\x01 \x01(\tR\x04date\x12\x14\n" +
+	"\x05label\x18\x02 \x01(\tR\x05label\x12\x14\n" +
+	"\x05emoji\x18\x03 \x01(\tR\x05emoji\x12\x14\n" +
+	"\x05score\x18\x04 \x01(\x05R\x05score\x12\x18\n" +
+	"\asummary\x18\x05 \x01(\tR\asummary\x12\x1a\n" +
+	"\bkeywords\x18\x06 \x03(\tR\bkeywords\x12\x1d\n" +
+	"\n" +
+	"memo_count\x18\a \x01(\x05R\tmemoCount\x12#\n" +
+	"\rsource_digest\x18\b \x01(\tR\fsourceDigest\x12\x14\n" +
+	"\x05model\x18\t \x01(\tR\x05model\x12\x1d\n" +
+	"\n" +
+	"updated_ts\x18\n" +
+	" \x01(\x03R\tupdatedTsB\x9b\x01\n" +
 	"\x0fcom.memos.storeB\x10UserSettingProtoP\x01Z)github.com/usememos/memos/proto/gen/store\xa2\x02\x03MSX\xaa\x02\vMemos.Store\xca\x02\vMemos\\Store\xe2\x02\x17Memos\\Store\\GPBMetadata\xea\x02\fMemos::Storeb\x06proto3"
 
 var (
@@ -1522,7 +1824,7 @@ func file_store_user_setting_proto_rawDescGZIP() []byte {
 }
 
 var file_store_user_setting_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_store_user_setting_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_store_user_setting_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_store_user_setting_proto_goTypes = []any{
 	(UserSetting_Key)(0),                                        // 0: memos.store.UserSetting.Key
 	(ReviewUserSetting_Condition)(0),                            // 1: memos.store.ReviewUserSetting.Condition
@@ -1536,16 +1838,19 @@ var file_store_user_setting_proto_goTypes = []any{
 	(*MemoViewsUserSetting)(nil),                                // 9: memos.store.MemoViewsUserSetting
 	(*WebhooksUserSetting)(nil),                                 // 10: memos.store.WebhooksUserSetting
 	(*ReviewUserSetting)(nil),                                   // 11: memos.store.ReviewUserSetting
-	(*UserTagMetadata_Icon)(nil),                                // 12: memos.store.UserTagMetadata.Icon
-	nil,                                                         // 13: memos.store.TagsUserSetting.TagsEntry
-	(*RefreshTokensUserSetting_RefreshToken)(nil),               // 14: memos.store.RefreshTokensUserSetting.RefreshToken
-	(*RefreshTokensUserSetting_ClientInfo)(nil),                 // 15: memos.store.RefreshTokensUserSetting.ClientInfo
-	(*PersonalAccessTokensUserSetting_PersonalAccessToken)(nil), // 16: memos.store.PersonalAccessTokensUserSetting.PersonalAccessToken
-	(*MemoViewsUserSetting_MemoView)(nil),                       // 17: memos.store.MemoViewsUserSetting.MemoView
-	(*MemoViewsUserSetting_MemoView_Icon)(nil),                  // 18: memos.store.MemoViewsUserSetting.MemoView.Icon
-	(*WebhooksUserSetting_Webhook)(nil),                         // 19: memos.store.WebhooksUserSetting.Webhook
-	(*color.Color)(nil),                                         // 20: google.type.Color
-	(*timestamppb.Timestamp)(nil),                               // 21: google.protobuf.Timestamp
+	(*DiaryUserSetting)(nil),                                    // 12: memos.store.DiaryUserSetting
+	(*DiaryMoodsUserSetting)(nil),                               // 13: memos.store.DiaryMoodsUserSetting
+	(*DiaryMood)(nil),                                           // 14: memos.store.DiaryMood
+	(*UserTagMetadata_Icon)(nil),                                // 15: memos.store.UserTagMetadata.Icon
+	nil,                                                         // 16: memos.store.TagsUserSetting.TagsEntry
+	(*RefreshTokensUserSetting_RefreshToken)(nil),               // 17: memos.store.RefreshTokensUserSetting.RefreshToken
+	(*RefreshTokensUserSetting_ClientInfo)(nil),                 // 18: memos.store.RefreshTokensUserSetting.ClientInfo
+	(*PersonalAccessTokensUserSetting_PersonalAccessToken)(nil), // 19: memos.store.PersonalAccessTokensUserSetting.PersonalAccessToken
+	(*MemoViewsUserSetting_MemoView)(nil),                       // 20: memos.store.MemoViewsUserSetting.MemoView
+	(*MemoViewsUserSetting_MemoView_Icon)(nil),                  // 21: memos.store.MemoViewsUserSetting.MemoView.Icon
+	(*WebhooksUserSetting_Webhook)(nil),                         // 22: memos.store.WebhooksUserSetting.Webhook
+	(*color.Color)(nil),                                         // 23: google.type.Color
+	(*timestamppb.Timestamp)(nil),                               // 24: google.protobuf.Timestamp
 }
 var file_store_user_setting_proto_depIdxs = []int32{
 	0,  // 0: memos.store.UserSetting.key:type_name -> memos.store.UserSetting.Key
@@ -1556,28 +1861,31 @@ var file_store_user_setting_proto_depIdxs = []int32{
 	8,  // 5: memos.store.UserSetting.personal_access_tokens:type_name -> memos.store.PersonalAccessTokensUserSetting
 	6,  // 6: memos.store.UserSetting.tags:type_name -> memos.store.TagsUserSetting
 	11, // 7: memos.store.UserSetting.review:type_name -> memos.store.ReviewUserSetting
-	20, // 8: memos.store.UserTagMetadata.background_color:type_name -> google.type.Color
-	12, // 9: memos.store.UserTagMetadata.icon:type_name -> memos.store.UserTagMetadata.Icon
-	13, // 10: memos.store.TagsUserSetting.tags:type_name -> memos.store.TagsUserSetting.TagsEntry
-	14, // 11: memos.store.RefreshTokensUserSetting.refresh_tokens:type_name -> memos.store.RefreshTokensUserSetting.RefreshToken
-	16, // 12: memos.store.PersonalAccessTokensUserSetting.tokens:type_name -> memos.store.PersonalAccessTokensUserSetting.PersonalAccessToken
-	17, // 13: memos.store.MemoViewsUserSetting.memo_views:type_name -> memos.store.MemoViewsUserSetting.MemoView
-	19, // 14: memos.store.WebhooksUserSetting.webhooks:type_name -> memos.store.WebhooksUserSetting.Webhook
-	1,  // 15: memos.store.ReviewUserSetting.condition:type_name -> memos.store.ReviewUserSetting.Condition
-	2,  // 16: memos.store.ReviewUserSetting.time_range:type_name -> memos.store.ReviewUserSetting.TimeRange
-	5,  // 17: memos.store.TagsUserSetting.TagsEntry.value:type_name -> memos.store.UserTagMetadata
-	21, // 18: memos.store.RefreshTokensUserSetting.RefreshToken.expires_at:type_name -> google.protobuf.Timestamp
-	21, // 19: memos.store.RefreshTokensUserSetting.RefreshToken.created_at:type_name -> google.protobuf.Timestamp
-	15, // 20: memos.store.RefreshTokensUserSetting.RefreshToken.client_info:type_name -> memos.store.RefreshTokensUserSetting.ClientInfo
-	21, // 21: memos.store.PersonalAccessTokensUserSetting.PersonalAccessToken.expires_at:type_name -> google.protobuf.Timestamp
-	21, // 22: memos.store.PersonalAccessTokensUserSetting.PersonalAccessToken.created_at:type_name -> google.protobuf.Timestamp
-	21, // 23: memos.store.PersonalAccessTokensUserSetting.PersonalAccessToken.last_used_at:type_name -> google.protobuf.Timestamp
-	18, // 24: memos.store.MemoViewsUserSetting.MemoView.icon:type_name -> memos.store.MemoViewsUserSetting.MemoView.Icon
-	25, // [25:25] is the sub-list for method output_type
-	25, // [25:25] is the sub-list for method input_type
-	25, // [25:25] is the sub-list for extension type_name
-	25, // [25:25] is the sub-list for extension extendee
-	0,  // [0:25] is the sub-list for field type_name
+	12, // 8: memos.store.UserSetting.diary:type_name -> memos.store.DiaryUserSetting
+	13, // 9: memos.store.UserSetting.diary_moods:type_name -> memos.store.DiaryMoodsUserSetting
+	23, // 10: memos.store.UserTagMetadata.background_color:type_name -> google.type.Color
+	15, // 11: memos.store.UserTagMetadata.icon:type_name -> memos.store.UserTagMetadata.Icon
+	16, // 12: memos.store.TagsUserSetting.tags:type_name -> memos.store.TagsUserSetting.TagsEntry
+	17, // 13: memos.store.RefreshTokensUserSetting.refresh_tokens:type_name -> memos.store.RefreshTokensUserSetting.RefreshToken
+	19, // 14: memos.store.PersonalAccessTokensUserSetting.tokens:type_name -> memos.store.PersonalAccessTokensUserSetting.PersonalAccessToken
+	20, // 15: memos.store.MemoViewsUserSetting.memo_views:type_name -> memos.store.MemoViewsUserSetting.MemoView
+	22, // 16: memos.store.WebhooksUserSetting.webhooks:type_name -> memos.store.WebhooksUserSetting.Webhook
+	1,  // 17: memos.store.ReviewUserSetting.condition:type_name -> memos.store.ReviewUserSetting.Condition
+	2,  // 18: memos.store.ReviewUserSetting.time_range:type_name -> memos.store.ReviewUserSetting.TimeRange
+	14, // 19: memos.store.DiaryMoodsUserSetting.moods:type_name -> memos.store.DiaryMood
+	5,  // 20: memos.store.TagsUserSetting.TagsEntry.value:type_name -> memos.store.UserTagMetadata
+	24, // 21: memos.store.RefreshTokensUserSetting.RefreshToken.expires_at:type_name -> google.protobuf.Timestamp
+	24, // 22: memos.store.RefreshTokensUserSetting.RefreshToken.created_at:type_name -> google.protobuf.Timestamp
+	18, // 23: memos.store.RefreshTokensUserSetting.RefreshToken.client_info:type_name -> memos.store.RefreshTokensUserSetting.ClientInfo
+	24, // 24: memos.store.PersonalAccessTokensUserSetting.PersonalAccessToken.expires_at:type_name -> google.protobuf.Timestamp
+	24, // 25: memos.store.PersonalAccessTokensUserSetting.PersonalAccessToken.created_at:type_name -> google.protobuf.Timestamp
+	24, // 26: memos.store.PersonalAccessTokensUserSetting.PersonalAccessToken.last_used_at:type_name -> google.protobuf.Timestamp
+	21, // 27: memos.store.MemoViewsUserSetting.MemoView.icon:type_name -> memos.store.MemoViewsUserSetting.MemoView.Icon
+	28, // [28:28] is the sub-list for method output_type
+	28, // [28:28] is the sub-list for method input_type
+	28, // [28:28] is the sub-list for extension type_name
+	28, // [28:28] is the sub-list for extension extendee
+	0,  // [0:28] is the sub-list for field type_name
 }
 
 func init() { file_store_user_setting_proto_init() }
@@ -1593,12 +1901,15 @@ func file_store_user_setting_proto_init() {
 		(*UserSetting_PersonalAccessTokens)(nil),
 		(*UserSetting_Tags)(nil),
 		(*UserSetting_Review)(nil),
+		(*UserSetting_Diary)(nil),
+		(*UserSetting_DiaryMoods)(nil),
 	}
-	file_store_user_setting_proto_msgTypes[9].OneofWrappers = []any{
+	file_store_user_setting_proto_msgTypes[9].OneofWrappers = []any{}
+	file_store_user_setting_proto_msgTypes[12].OneofWrappers = []any{
 		(*UserTagMetadata_Icon_Emoji)(nil),
 		(*UserTagMetadata_Icon_Lucide)(nil),
 	}
-	file_store_user_setting_proto_msgTypes[15].OneofWrappers = []any{
+	file_store_user_setting_proto_msgTypes[18].OneofWrappers = []any{
 		(*MemoViewsUserSetting_MemoView_Icon_Emoji)(nil),
 		(*MemoViewsUserSetting_MemoView_Icon_Lucide)(nil),
 	}
@@ -1608,7 +1919,7 @@ func file_store_user_setting_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_store_user_setting_proto_rawDesc), len(file_store_user_setting_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   17,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

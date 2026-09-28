@@ -153,6 +153,21 @@ service MemoService {
     option (google.api.http) = {get: "/api/v1/{name=memos/*}/referenceGraph"};
     option (google.api.method_signature) = "name";
   }
+  // ListDiaryMoods returns the mood readings already taken of the caller's
+  // diary days inside a date range. It never calls a provider, so a client can
+  // render the diary without paying for a reading.
+  rpc ListDiaryMoods(ListDiaryMoodsRequest) returns (ListDiaryMoodsResponse) {
+    option (google.api.http) = {get: "/api/v1/memos/-/diary/moods"};
+  }
+  // AnalyzeDiaryMood reads one diary day's mood and stores the result. The
+  // stored reading is returned unchanged when nothing about the day has
+  // changed since it was taken, so repeating the call is cheap.
+  rpc AnalyzeDiaryMood(AnalyzeDiaryMoodRequest) returns (AnalyzeDiaryMoodResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/memos/-/diary/moods:analyze"
+      body: "*"
+    };
+  }
   // BatchGetLinkMetadata gets metadata for links.
   rpc BatchGetLinkMetadata(BatchGetLinkMetadataRequest) returns (BatchGetLinkMetadataResponse) {
     option (google.api.http) = {
@@ -786,4 +801,70 @@ message LinkMetadata {
 
   // The link image URL.
   string image = 4;
+}
+
+// DiaryMood is one diary day read for its mood.
+message DiaryMood {
+  // The author's own calendar day, formatted "YYYY-MM-DD".
+  string date = 1;
+
+  // A short mood name, written in the language of the day's memos.
+  string label = 2;
+
+  // A single emoji standing for the mood.
+  string emoji = 3;
+
+  // How bright the day reads, from -100 to 100.
+  int32 score = 4;
+
+  // A sentence or two addressed to the author.
+  string summary = 5;
+
+  // The few themes the day turned on.
+  repeated string keywords = 6;
+
+  // How many diary memos the reading was taken from.
+  int32 memo_count = 7;
+
+  // When the reading was taken.
+  google.protobuf.Timestamp update_time = 8;
+}
+
+message ListDiaryMoodsRequest {
+  // Required. The first day to return, formatted "YYYY-MM-DD", inclusive.
+  string start_date = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // Required. The last day to return, formatted "YYYY-MM-DD", inclusive.
+  string end_date = 2 [(google.api.field_behavior) = REQUIRED];
+}
+
+message ListDiaryMoodsResponse {
+  // The readings inside the range, newest day first. Days that were never
+  // read are absent rather than empty.
+  repeated DiaryMood moods = 1;
+
+  // Whether a new reading can be taken at all: the instance has a mood
+  // provider configured and the caller has mood analysis enabled. A client
+  // that gets false should neither offer nor request a reading.
+  bool available = 2;
+}
+
+message AnalyzeDiaryMoodRequest {
+  // Required. The day to read, formatted "YYYY-MM-DD", in the caller's own
+  // calendar.
+  string date = 1 [(google.api.field_behavior) = REQUIRED];
+
+  // Optional. The caller's offset from UTC in minutes at that date, as
+  // reported by their own clock. It is what turns their calendar day into the
+  // instants the day's memos are selected by.
+  int32 utc_offset_minutes = 2 [(google.api.field_behavior) = OPTIONAL];
+
+  // Optional. Read the day again even when the stored reading still matches
+  // the day's memos.
+  bool force = 3 [(google.api.field_behavior) = OPTIONAL];
+}
+
+message AnalyzeDiaryMoodResponse {
+  // The day's reading. Unset when the day holds no diary memo.
+  DiaryMood mood = 1;
 }

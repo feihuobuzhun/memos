@@ -657,6 +657,7 @@ message UserSetting {
     WebhooksSetting webhooks_setting = 5;
     TagsSetting tags_setting = 6;
     ReviewSetting review_setting = 7;
+    DiarySetting diary_setting = 8;
   }
 
   // Enumeration of user setting keys.
@@ -670,6 +671,8 @@ message UserSetting {
     TAGS = 5;
     // REVIEW is the key for the user's daily review preferences.
     REVIEW = 6;
+    // DIARY is the key for the user's diary preferences.
+    DIARY = 7;
   }
 
   // General user settings configuration.
@@ -758,6 +761,20 @@ message UserSetting {
 
     // Optional. How many memos one day's review contains. Defaults to 16.
     int32 daily_count = 4 [(google.api.field_behavior) = OPTIONAL];
+  }
+
+  // Diary preferences: which of the user's memos are diary entries, and
+  // whether each diary day is read for its mood.
+  message DiarySetting {
+    // Optional. Tags that mark a memo as a diary entry. A memo matches when it
+    // carries one of them or a nested child of it, so "diary" also reaches
+    // "diary/travel". A leading "#" is accepted and normalized away. An empty
+    // list falls back to the built-in default tags.
+    repeated string tags = 1 [(google.api.field_behavior) = OPTIONAL];
+
+    // Optional. Whether the configured provider reads each diary day's mood.
+    // Absent means enabled.
+    optional bool mood_analysis = 2 [(google.api.field_behavior) = OPTIONAL];
   }
 }
 

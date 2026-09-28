@@ -24,6 +24,10 @@ message UserSetting {
     TAGS = 8;
     // The daily review preferences of the user.
     REVIEW = 9;
+    // The diary preferences of the user.
+    DIARY = 10;
+    // The AI readings of the user's diary days.
+    DIARY_MOODS = 11;
   }
 
   int32 user_id = 1;
@@ -37,6 +41,8 @@ message UserSetting {
     PersonalAccessTokensUserSetting personal_access_tokens = 9;
     TagsUserSetting tags = 10;
     ReviewUserSetting review = 11;
+    DiaryUserSetting diary = 12;
+    DiaryMoodsUserSetting diary_moods = 13;
   }
 }
 
@@ -197,4 +203,60 @@ message ReviewUserSetting {
 
   // daily_count is how many memos one day's review contains.
   int32 daily_count = 4;
+}
+
+// DiaryUserSetting configures the user's diary: which of their memos are diary
+// entries, and whether each day is read for its mood.
+message DiaryUserSetting {
+  // tags mark a memo as a diary entry. A memo matches when it carries one of
+  // these tags or a nested child of it, so "diary" also reaches "diary/travel".
+  // Stored in bare form, without a leading "#". An empty list means the diary
+  // falls back to the built-in default tags.
+  repeated string tags = 1;
+
+  // mood_analysis asks the configured provider to read each diary day's mood.
+  // Absent means enabled, so a reader who never opened the settings still gets
+  // whatever the instance configured.
+  optional bool mood_analysis = 2;
+}
+
+// DiaryMoodsUserSetting holds the readings already taken of the user's diary
+// days, newest day first. A reading is derived from the memos of one day and
+// can always be taken again, so the list is pruned instead of kept forever.
+message DiaryMoodsUserSetting {
+  repeated DiaryMood moods = 1;
+}
+
+// DiaryMood is one diary day read for its mood.
+message DiaryMood {
+  // date is the author's own calendar day, formatted "YYYY-MM-DD".
+  string date = 1;
+
+  // label is a short mood name, written in the language of the day's memos.
+  string label = 2;
+
+  // emoji is a single emoji standing for the mood.
+  string emoji = 3;
+
+  // score is how bright the day reads, from -100 to 100.
+  int32 score = 4;
+
+  // summary is a sentence or two addressed to the author.
+  string summary = 5;
+
+  // keywords are the few themes the day turned on.
+  repeated string keywords = 6;
+
+  // memo_count is how many diary memos the reading was taken from.
+  int32 memo_count = 7;
+
+  // source_digest identifies the exact memos and revisions behind the reading,
+  // so an unchanged day is never read twice.
+  string source_digest = 8;
+
+  // model records which model produced the reading.
+  string model = 9;
+
+  // updated_ts is when the reading was taken, in seconds since the epoch.
+  int64 updated_ts = 10;
 }
