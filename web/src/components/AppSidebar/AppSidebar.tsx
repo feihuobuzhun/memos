@@ -17,6 +17,7 @@ import {
   type LucideIcon,
   MapIcon,
   MenuIcon,
+  NotebookPenIcon,
   PaperclipIcon,
   SearchIcon,
   SquarePenIcon,
@@ -313,7 +314,9 @@ const RouteSidebarContent = () => {
   if (kind === "inbox") return <InboxSidebarContent />;
   if (kind === "settings") return <SettingsSidebarContent />;
   if (kind === "memo") return <MemoDetailSidebarContent />;
-  if (kind === "common") return <CommonSidebarContent />;
+  // The diary is its own reading surface: the collection's filters do not reach it,
+  // so it takes the generic sidebar rather than tags that could not be applied.
+  if (kind === "common" || kind === "diary") return <CommonSidebarContent />;
   return null;
 };
 
@@ -404,6 +407,13 @@ const GlobalNavigation = () => {
           path: collectionPathForLocation(ROUTES.CALENDAR, location.pathname),
           icon: CalendarDaysIcon,
           active: routeKind === "calendar",
+        },
+        {
+          id: "diary",
+          label: t("diary.title"),
+          path: ROUTES.DIARY,
+          icon: NotebookPenIcon,
+          active: routeKind === "diary",
         },
         {
           id: "map",

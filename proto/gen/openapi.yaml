@@ -766,6 +766,67 @@ paths:
                         application/json:
                             schema:
                                 $ref: '#/components/schemas/Status'
+    /api/v1/memos/-/diary/moods:
+        get:
+            tags:
+                - MemoService
+            description: |-
+                ListDiaryMoods returns the mood readings already taken of the caller's
+                 diary days inside a date range. It never calls a provider, so a client can
+                 render the diary without paying for a reading.
+            operationId: MemoService_ListDiaryMoods
+            parameters:
+                - name: startDate
+                  in: query
+                  description: Required. The first day to return, formatted "YYYY-MM-DD", inclusive.
+                  schema:
+                    type: string
+                - name: endDate
+                  in: query
+                  description: Required. The last day to return, formatted "YYYY-MM-DD", inclusive.
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ListDiaryMoodsResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
+    /api/v1/memos/-/diary/moods:analyze:
+        post:
+            tags:
+                - MemoService
+            description: |-
+                AnalyzeDiaryMood reads one diary day's mood and stores the result. The
+                 stored reading is returned unchanged when nothing about the day has
+                 changed since it was taken, so repeating the call is cheap.
+            operationId: MemoService_AnalyzeDiaryMood
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/AnalyzeDiaryMoodRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/AnalyzeDiaryMoodResponse'
+                default:
+                    description: Default error response
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/Status'
     /api/v1/memos/-/linkMetadata:
         get:
             tags:
@@ -3105,6 +3166,35 @@ components:
                 name:
                     type: string
                     description: 'Required. Format: spaces/{space}/invitations/{username}.'
+        AnalyzeDiaryMoodRequest:
+            required:
+                - date
+            type: object
+            properties:
+                date:
+                    type: string
+                    description: |-
+                        Required. The day to read, formatted "YYYY-MM-DD", in the caller's own
+                         calendar.
+                utcOffsetMinutes:
+                    type: integer
+                    description: |-
+                        Optional. The caller's offset from UTC in minutes at that date, as
+                         reported by their own clock. It is what turns their calendar day into the
+                         instants the day's memos are selected by.
+                    format: int32
+                force:
+                    type: boolean
+                    description: |-
+                        Optional. Read the day again even when the stored reading still matches
+                         the day's memos.
+        AnalyzeDiaryMoodResponse:
+            type: object
+            properties:
+                mood:
+                    allOf:
+                        - $ref: '#/components/schemas/DiaryMood'
+                    description: The day's reading. Unset when the day holds no diary memo.
         Attachment:
             required:
                 - filename
@@ -3434,6 +3524,46 @@ components:
                 name:
                     type: string
                     description: 'Required. Format: spaces/{space}/invitations/{username}.'
+        DiaryMood:
+            type: object
+            properties:
+                date:
+                    type: string
+                    description: date is the author's own calendar day, formatted "YYYY-MM-DD".
+                label:
+                    type: string
+                    description: label is a short mood name, written in the language of the day's memos.
+                emoji:
+                    type: string
+                    description: emoji is a single emoji standing for the mood.
+                score:
+                    type: integer
+                    description: score is how bright the day reads, from -100 to 100.
+                    format: int32
+                summary:
+                    type: string
+                    description: summary is a sentence or two addressed to the author.
+                keywords:
+                    type: array
+                    items:
+                        type: string
+                    description: keywords are the few themes the day turned on.
+                memoCount:
+                    type: integer
+                    description: memo_count is how many diary memos the reading was taken from.
+                    format: int32
+                sourceDigest:
+                    type: string
+                    description: |-
+                        source_digest identifies the exact memos and revisions behind the reading,
+                         so an unchanged day is never read twice.
+                model:
+                    type: string
+                    description: model records which model produced the reading.
+                updatedTs:
+                    type: string
+                    description: updated_ts is when the reading was taken, in seconds since the epoch.
+            description: DiaryMood is one diary day read for its mood.
         FieldMapping:
             type: object
             properties:
@@ -3823,6 +3953,12 @@ components:
                     allOf:
                         - $ref: '#/components/schemas/InstanceSetting_AssistantsConfig'
                     description: assistants configures automatic AI review of newly created memos.
+                diaryMood:
+                    allOf:
+                        - $ref: '#/components/schemas/InstanceSetting_DiaryMoodConfig'
+                    description: |-
+                        diary_mood configures the AI reading of a diary day's mood.
+                         When unset or diary_mood.provider_id is empty, no day is ever read.
             description: AI provider configuration settings.
         InstanceSetting_AccessSetting:
             type: object
@@ -3850,6 +3986,29 @@ components:
                          Routing picks the first enabled assistant whose tags match the new memo;
                          an enabled assistant with no tags acts as the fallback for every memo.
             description: AssistantsConfig configures the automatic memo review feature.
+        InstanceSetting_DiaryMoodConfig:
+            type: object
+            properties:
+                enabled:
+                    type: boolean
+                    description: enabled is the master switch for reading diary days.
+                providerId:
+                    type: string
+                    description: provider_id references an entry in AISetting.providers[].id.
+                model:
+                    type: string
+                    description: |-
+                        model is the provider-specific model identifier.
+                         Empty string falls back to the engine default.
+                prompt:
+                    type: string
+                    description: |-
+                        prompt is the system instruction sent to the model.
+                         Empty string falls back to the built-in default prompt.
+            description: |-
+                DiaryMoodConfig configures the reading that turns one diary day into a
+                 mood. It names a provider and a model, so it is instance-wide; whether a
+                 given reader's days are read is their own diary setting.
         InstanceSetting_GeneralSetting:
             type: object
             properties:
@@ -4088,6 +4247,22 @@ components:
                     description: |-
                         A token that can be sent as `page_token` to retrieve the next page.
                          If this field is omitted, there are no subsequent pages.
+        ListDiaryMoodsResponse:
+            type: object
+            properties:
+                moods:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/DiaryMood'
+                    description: |-
+                        The readings inside the range, newest day first. Days that were never
+                         read are absent rather than empty.
+                available:
+                    type: boolean
+                    description: |-
+                        Whether a new reading can be taken at all: the instance has a mood
+                         provider configured and the caller has mood analysis enabled. A client
+                         that gets false should neither offer nor request a reading.
         ListIdentityProvidersResponse:
             type: object
             properties:
@@ -5394,7 +5569,29 @@ components:
                     $ref: '#/components/schemas/UserSetting_TagsSetting'
                 reviewSetting:
                     $ref: '#/components/schemas/UserSetting_ReviewSetting'
+                diarySetting:
+                    $ref: '#/components/schemas/UserSetting_DiarySetting'
             description: User settings message
+        UserSetting_DiarySetting:
+            type: object
+            properties:
+                tags:
+                    type: array
+                    items:
+                        type: string
+                    description: |-
+                        Optional. Tags that mark a memo as a diary entry. A memo matches when it
+                         carries one of them or a nested child of it, so "diary" also reaches
+                         "diary/travel". A leading "#" is accepted and normalized away. An empty
+                         list falls back to the built-in default tags.
+                moodAnalysis:
+                    type: boolean
+                    description: |-
+                        Optional. Whether the configured provider reads each diary day's mood.
+                         Absent means enabled.
+            description: |-
+                Diary preferences: which of the user's memos are diary entries, and
+                 whether each diary day is read for its mood.
         UserSetting_GeneralSetting:
             type: object
             properties:

@@ -371,6 +371,7 @@ func convertInstanceAISettingFromStore(setting *storepb.InstanceAISetting) *v1pb
 		Providers:     make([]*v1pb.InstanceSetting_AIProviderConfig, 0, len(setting.Providers)),
 		Transcription: convertTranscriptionConfigFromStore(setting.GetTranscription()),
 		Assistants:    convertAssistantsConfigFromStore(setting.GetAssistants()),
+		DiaryMood:     convertDiaryMoodConfigFromStore(setting.GetDiaryMood()),
 	}
 	for _, provider := range setting.Providers {
 		if provider == nil {
@@ -398,6 +399,7 @@ func convertInstanceAISettingToStore(setting *v1pb.InstanceSetting_AISetting) *s
 		Providers:     make([]*storepb.AIProviderConfig, 0, len(setting.Providers)),
 		Transcription: convertTranscriptionConfigToStore(setting.GetTranscription()),
 		Assistants:    convertAssistantsConfigToStore(setting.GetAssistants()),
+		DiaryMood:     convertDiaryMoodConfigToStore(setting.GetDiaryMood()),
 	}
 	for _, provider := range setting.Providers {
 		if provider == nil {
@@ -434,6 +436,30 @@ func convertTranscriptionConfigToStore(setting *v1pb.InstanceSetting_Transcripti
 		ProviderId: setting.GetProviderId(),
 		Model:      setting.GetModel(),
 		Language:   setting.GetLanguage(),
+		Prompt:     setting.GetPrompt(),
+	}
+}
+
+func convertDiaryMoodConfigFromStore(setting *storepb.DiaryMoodConfig) *v1pb.InstanceSetting_DiaryMoodConfig {
+	if setting == nil {
+		return nil
+	}
+	return &v1pb.InstanceSetting_DiaryMoodConfig{
+		Enabled:    setting.GetEnabled(),
+		ProviderId: setting.GetProviderId(),
+		Model:      setting.GetModel(),
+		Prompt:     setting.GetPrompt(),
+	}
+}
+
+func convertDiaryMoodConfigToStore(setting *v1pb.InstanceSetting_DiaryMoodConfig) *storepb.DiaryMoodConfig {
+	if setting == nil {
+		return nil
+	}
+	return &storepb.DiaryMoodConfig{
+		Enabled:    setting.GetEnabled(),
+		ProviderId: setting.GetProviderId(),
+		Model:      setting.GetModel(),
 		Prompt:     setting.GetPrompt(),
 	}
 }

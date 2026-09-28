@@ -461,6 +461,22 @@ func (s *ConnectServiceHandler) ListReviewMemos(ctx context.Context, req *connec
 	return connect.NewResponse(resp), nil
 }
 
+func (s *ConnectServiceHandler) ListDiaryMoods(ctx context.Context, req *connect.Request[v1pb.ListDiaryMoodsRequest]) (*connect.Response[v1pb.ListDiaryMoodsResponse], error) {
+	resp, err := s.APIV1Service.ListDiaryMoods(ctx, req.Msg)
+	if err != nil {
+		return nil, convertGRPCError(err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
+func (s *ConnectServiceHandler) AnalyzeDiaryMood(ctx context.Context, req *connect.Request[v1pb.AnalyzeDiaryMoodRequest]) (*connect.Response[v1pb.AnalyzeDiaryMoodResponse], error) {
+	resp, err := s.APIV1Service.AnalyzeDiaryMood(ctx, req.Msg)
+	if err != nil {
+		return nil, convertGRPCError(err)
+	}
+	return connect.NewResponse(resp), nil
+}
+
 func (s *ConnectServiceHandler) GetMemoReferenceGraph(ctx context.Context, req *connect.Request[v1pb.GetMemoReferenceGraphRequest]) (*connect.Response[v1pb.GetMemoReferenceGraphResponse], error) {
 	resp, err := s.APIV1Service.GetMemoReferenceGraph(ctx, req.Msg)
 	if err != nil {

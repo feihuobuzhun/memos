@@ -15,6 +15,8 @@ describe("sidebar route content", () => {
     ["/calendar", "calendar"],
     ["/calendar/2026/08", "calendar"],
     ["/Calendar/2026/08/02/", "calendar"],
+    ["/diary", "diary"],
+    ["/Diary/", "diary"],
     ["/attachments", "attachments"],
     ["/Attachments/", "attachments"],
     ["/inbox", "inbox"],

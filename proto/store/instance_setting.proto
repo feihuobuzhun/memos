@@ -194,6 +194,29 @@ message InstanceAISetting {
 
   // assistants configures automatic AI review of newly created memos.
   AssistantsConfig assistants = 3;
+
+  // diary_mood configures the AI reading of a diary day's mood.
+  // When unset or diary_mood.provider_id is empty, no day is ever read.
+  DiaryMoodConfig diary_mood = 4;
+}
+
+// DiaryMoodConfig configures the reading that turns one diary day into a mood.
+// It is instance-wide because it names a provider and a model; whether a given
+// reader's days are read is their own diary setting.
+message DiaryMoodConfig {
+  // enabled is the master switch for reading diary days.
+  bool enabled = 1;
+
+  // provider_id references an entry in InstanceAISetting.providers[].id.
+  string provider_id = 2;
+
+  // model is the provider-specific model identifier.
+  // Empty string falls back to the engine default.
+  string model = 3;
+
+  // prompt is the system instruction sent to the model.
+  // Empty string falls back to the built-in default prompt.
+  string prompt = 4;
 }
 
 message AIProviderConfig {

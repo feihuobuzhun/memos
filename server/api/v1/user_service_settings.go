@@ -175,6 +175,28 @@ func (s *APIV1Service) UpdateUserSetting(ctx context.Context, request *v1pb.Upda
 				ReviewSetting: convertReviewSettingFromStore(normalized),
 			},
 		}
+	case storepb.UserSetting_DIARY:
+		// Like the review setting, the diary setting is small and always edited
+		// as a whole, so the mask only says whether the client meant to write it.
+		for _, field := range request.UpdateMask.Paths {
+			if field != "diary" {
+				return nil, status.Errorf(codes.InvalidArgument, "unsupported update mask path for diary setting: %s", field)
+			}
+		}
+		incomingDiary := request.Setting.GetDiarySetting()
+		if incomingDiary == nil {
+			return nil, status.Errorf(codes.InvalidArgument, "diary setting is required")
+		}
+		normalizedDiary := convertDiarySettingToStore(incomingDiary)
+		if err := normalizeDiarySetting(normalizedDiary); err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid diary setting: %v", err)
+		}
+		updatedSetting = &v1pb.UserSetting{
+			Name: request.Setting.Name,
+			Value: &v1pb.UserSetting_DiarySetting_{
+				DiarySetting: convertDiarySettingFromStore(normalizedDiary),
+			},
+		}
 	default:
 		return nil, status.Errorf(codes.InvalidArgument, "setting type %s should not be updated via UpdateUserSetting", storeKey.String())
 	}

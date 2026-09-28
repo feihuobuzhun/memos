@@ -38,6 +38,8 @@ const (
 	ScopeUploadUser Scope = "upload_user"
 	// ScopeTranscribeUser counts transcription calls per user.
 	ScopeTranscribeUser Scope = "transcribe_user"
+	// ScopeDiaryMoodUser counts diary mood readings per user.
+	ScopeDiaryMoodUser Scope = "diary_mood_user"
 	// ScopeWriteUser counts content creation per user.
 	ScopeWriteUser Scope = "write_user"
 	// ScopeArchiveUser counts memo exports and imports per user.
@@ -75,6 +77,7 @@ func DefaultPolicy() Policy {
 		ScopeLinkMetadata:       {Limit: 60, Window: time.Minute},
 		ScopeUploadUser:         {Limit: 120, Window: time.Minute},
 		ScopeTranscribeUser:     {Limit: 20, Window: time.Hour},
+		ScopeDiaryMoodUser:      {Limit: 60, Window: time.Hour},
 		ScopeWriteUser:          {Limit: 120, Window: time.Minute},
 		ScopeArchiveUser:        {Limit: 10, Window: time.Hour},
 	}

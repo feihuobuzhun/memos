@@ -127,6 +127,9 @@ func (s *APIV1Service) prepareInstanceAISettingForUpdate(ctx context.Context, se
 	if err := prepareAssistantsConfigForUpdate(setting, existing); err != nil {
 		return err
 	}
+	if err := prepareDiaryMoodConfigForUpdate(setting, existing); err != nil {
+		return err
+	}
 	return nil
 }
 

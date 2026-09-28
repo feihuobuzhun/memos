@@ -7,6 +7,7 @@ export type SidebarRouteKind =
   | "profile"
   | "views"
   | "calendar"
+  | "diary"
   | "map"
   | "attachments"
   | "inbox"
@@ -28,6 +29,7 @@ export const getSidebarRouteKind = (path: string): SidebarRouteKind => {
   if (getProfileUsername(normalizedPath) !== undefined) return "profile";
   if (matchPath(ROUTES.VIEWS, normalizedPath)) return "views";
   if (isCalendarRoute(normalizedPath)) return "calendar";
+  if (matchPath(ROUTES.DIARY, normalizedPath)) return "diary";
   if (matchPath(ROUTES.MAP, normalizedPath)) return "map";
   if (matchPath(ROUTES.ATTACHMENTS, normalizedPath)) return "attachments";
   if (matchPath(ROUTES.INBOX, normalizedPath)) return "inbox";
