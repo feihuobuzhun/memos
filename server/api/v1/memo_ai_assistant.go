@@ -31,6 +31,10 @@ const (
 	maxAssistantContextChars = 8000
 	// maxAssistantMemoChars bounds a single memo inside the prompt.
 	maxAssistantMemoChars = 2000
+	// maxAssistantReferenceMemos bounds how many referenced memos travel with a
+	// review. References are explicit author intent, so they are always sent —
+	// this cap only keeps a link-heavy memo inside the context budget.
+	maxAssistantReferenceMemos = 10
 	// assistantResponseMaxTokens bounds the model response length.
 	assistantResponseMaxTokens = 1200
 
@@ -148,10 +152,18 @@ func (s *APIV1Service) reviewMemoWithAssistant(ctx context.Context, memoID int32
 		return err
 	}
 
+	referencedMemos, err := s.loadAssistantReferencedMemos(ctx, memo)
+	if err != nil {
+		return errors.Wrap(err, "failed to load referenced memos")
+	}
+
 	contextMemos, err := s.loadAssistantContextMemos(ctx, memo, assistant, route.matchedTag)
 	if err != nil {
 		return errors.Wrap(err, "failed to load context memos")
 	}
+	// A memo already included as a reference must not repeat in the
+	// scope-based background.
+	contextMemos = dropAssistantContextDuplicates(contextMemos, referencedMemos)
 
 	completer, err := s.assistantCompleter(provider)
 	if err != nil {
@@ -164,7 +176,7 @@ func (s *APIV1Service) reviewMemoWithAssistant(ctx context.Context, memoID int32
 	response, err := completer.Complete(ctx, chat.Request{
 		Model:        model,
 		Instructions: prompt,
-		Input:        buildAssistantInput(memo, contextMemos),
+		Input:        buildAssistantInput(memo, referencedMemos, contextMemos),
 		MaxTokens:    assistantResponseMaxTokens,
 	})
 	if err != nil {
@@ -181,6 +193,7 @@ func (s *APIV1Service) reviewMemoWithAssistant(ctx context.Context, memoID int32
 	slog.Info("Posted AI assistant review",
 		slog.String("memo_uid", memo.UID),
 		slog.String("assistant", assistant.GetTitle()),
+		slog.Int("referenced_memos", len(referencedMemos)),
 		slog.Int("context_memos", len(contextMemos)))
 	return nil
 }
@@ -282,32 +295,112 @@ func (s *APIV1Service) loadAssistantContextMemos(
 	return contextMemos, nil
 }
 
+// loadAssistantReferencedMemos returns the memos the reviewed memo links to.
+// A reference is the author's own explicit curation — the strongest context
+// available — so referenced memos travel with every review, whatever the
+// configured scope. The review is written for the author's eyes only, but its
+// prompt must still not carry a memo the author cannot read, so the standard
+// access scope filters the targets.
+func (s *APIV1Service) loadAssistantReferencedMemos(ctx context.Context, memo *store.Memo) ([]*store.Memo, error) {
+	relationType := store.MemoRelationReference
+	relations, err := s.Store.ListMemoRelations(ctx, &store.FindMemoRelation{MemoID: &memo.ID, Type: &relationType})
+	if err != nil {
+		return nil, err
+	}
+
+	ids := make([]int32, 0, len(relations))
+	for _, relation := range relations {
+		if relation == nil || relation.RelatedMemoID <= 0 || relation.RelatedMemoID == memo.ID {
+			continue
+		}
+		ids = append(ids, relation.RelatedMemoID)
+		if len(ids) == maxAssistantReferenceMemos {
+			break
+		}
+	}
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	return s.Store.ListMemos(ctx, &store.FindMemo{
+		IDList:          ids,
+		RowStatus:       rowStatusPtr(store.Normal),
+		ExcludeComments: true,
+		Access: &store.MemoAccessScope{
+			UserID:         &memo.CreatorID,
+			AllowPublic:    true,
+			AllowProtected: true,
+		},
+	})
+}
+
+// dropAssistantContextDuplicates removes scope-based memos already included
+// as references, so one memo never appears in both sections.
+func dropAssistantContextDuplicates(contextMemos, referencedMemos []*store.Memo) []*store.Memo {
+	if len(contextMemos) == 0 || len(referencedMemos) == 0 {
+		return contextMemos
+	}
+	referencedIDs := make(map[int32]struct{}, len(referencedMemos))
+	for _, memo := range referencedMemos {
+		if memo != nil {
+			referencedIDs[memo.ID] = struct{}{}
+		}
+	}
+	kept := make([]*store.Memo, 0, len(contextMemos))
+	for _, memo := range contextMemos {
+		if memo == nil {
+			continue
+		}
+		if _, duplicate := referencedIDs[memo.ID]; duplicate {
+			continue
+		}
+		kept = append(kept, memo)
+	}
+	return kept
+}
+
 // buildAssistantInput renders the user payload sent alongside the assistant's
 // system prompt. Structural labels stay in English so they read the same to
 // every model; the prompt decides the reply language.
-func buildAssistantInput(memo *store.Memo, contextMemos []*store.Memo) string {
+func buildAssistantInput(memo *store.Memo, referencedMemos, contextMemos []*store.Memo) string {
 	var builder strings.Builder
 	builder.WriteString("# New note\n\n")
 	builder.WriteString(truncateRunes(memo.Content, maxAssistantMemoChars))
 
-	if len(contextMemos) == 0 {
-		return builder.String()
-	}
-
-	builder.WriteString("\n\n# Earlier notes for context (most recent first)\n")
 	remaining := maxAssistantContextChars
-	for index, contextMemo := range contextMemos {
-		content := strings.TrimSpace(truncateRunes(contextMemo.Content, maxAssistantMemoChars))
+	// References come first and share the same budget: the author linked them
+	// on purpose, so they outrank the scope-based background.
+	remaining = writeAssistantMemoSection(&builder, remaining, "Notes referenced by the new note", referencedMemos)
+	writeAssistantMemoSection(&builder, remaining, "Earlier notes for context (most recent first)", contextMemos)
+	return builder.String()
+}
+
+// writeAssistantMemoSection renders one headed list inside the remaining
+// character budget and returns what is left of it.
+func writeAssistantMemoSection(builder *strings.Builder, budget int, heading string, memos []*store.Memo) int {
+	var section strings.Builder
+	index := 0
+	for _, memo := range memos {
+		if memo == nil {
+			continue
+		}
+		content := strings.TrimSpace(truncateRunes(memo.Content, maxAssistantMemoChars))
 		if content == "" {
 			continue
 		}
-		if len(content) > remaining {
-			break
+		if len(content) > budget {
+			continue
 		}
-		remaining -= len(content)
-		fmt.Fprintf(&builder, "\n%d. %s\n", index+1, content)
+		budget -= len(content)
+		index++
+		fmt.Fprintf(&section, "\n%d. %s\n", index, content)
 	}
-	return builder.String()
+	if section.Len() == 0 {
+		return budget
+	}
+	builder.WriteString("\n\n# " + heading + "\n")
+	builder.WriteString(section.String())
+	return budget
 }
 
 func truncateRunes(value string, limit int) string {

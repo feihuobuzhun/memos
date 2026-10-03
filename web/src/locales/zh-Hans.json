@@ -461,6 +461,7 @@
       "context-count": "参考条数",
       "context-recent": "最近的卡片",
       "context-scope": "随卡片一起发送的内容",
+      "context-references-note": "被引用的卡片总会一并发送，且排在上面的范围之前。",
       "context-self": "仅这张卡片",
       "context-tag": "同一标签下的卡片",
       "description": "助手运行在服务端，任何客户端创建的卡片都会被点评。每位助手以自己的账号发表评论。",

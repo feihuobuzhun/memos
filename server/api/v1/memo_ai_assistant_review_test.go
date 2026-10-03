@@ -2,6 +2,7 @@ package v1
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -165,4 +166,94 @@ func TestAssistantReview_SkipsExistingReview(t *testing.T) {
 	// assistant matches every memo.
 	require.NoError(t, svc.reviewMemoWithAssistant(ctx, storeMemoByName(ctx, t, svc, comments[0].Name).ID))
 	assert.Len(t, completer.requests, 1, "an assistant must not review its own output")
+}
+
+// TestAssistantReview_IncludesReferencedMemos covers the reported gap: a memo's
+// own references are the strongest context the author can give a review, yet
+// only recent or same-tag memos used to travel. References must ride along
+// with every review, ahead of the scope-based background.
+func TestAssistantReview_IncludesReferencedMemos(t *testing.T) {
+	ctx := context.Background()
+	svc := newIntegrationService(t)
+	author := createSpaceTestUser(ctx, t, svc, "reader", store.RoleUser)
+	authorCtx := userCtx(ctx, author.ID)
+	completer := installStubAssistant(ctx, t, svc, []string{"book"}, "继续。")
+
+	target, err := svc.CreateMemo(authorCtx, &v1pb.CreateMemoRequest{
+		Memo: &v1pb.Memo{Content: "心流：完全沉浸时时间感消失。", Visibility: v1pb.Visibility_PRIVATE},
+	})
+	require.NoError(t, err)
+
+	memo, err := svc.CreateMemo(authorCtx, &v1pb.CreateMemoRequest{
+		Memo: &v1pb.Memo{
+			Content:    "#book 今天重读心流一章。[关联](/" + target.Name + ")",
+			Visibility: v1pb.Visibility_PRIVATE,
+		},
+	})
+	require.NoError(t, err)
+
+	waitForAssistantComments(authorCtx, t, svc, memo.Name, 1)
+	require.Len(t, completer.requests, 1)
+	input := completer.requests[0].Input
+	assert.Contains(t, input, "# Notes referenced by the new note")
+	assert.Contains(t, input, "心流：完全沉浸时时间感消失。", "the referenced memo must reach the model")
+	assert.Greater(t,
+		strings.Index(input, "心流：完全沉浸时时间感消失。"),
+		strings.Index(input, "# Notes referenced by the new note"),
+		"the referenced memo belongs to its own section, after the new note")
+}
+
+// TestAssistantReferencedMemos_RespectReadAccess guards the privacy boundary:
+// a review is written for the memo's author, so a referenced memo the author
+// cannot read must never enter the prompt. Relations bypass content-link
+// validation here on purpose, simulating a target locked down after the link.
+func TestAssistantReferencedMemos_RespectReadAccess(t *testing.T) {
+	ctx := context.Background()
+	svc := newIntegrationService(t)
+	author := createSpaceTestUser(ctx, t, svc, "reader", store.RoleUser)
+	other := createSpaceTestUser(ctx, t, svc, "other", store.RoleUser)
+	authorCtx := userCtx(ctx, author.ID)
+	otherCtx := userCtx(ctx, other.ID)
+
+	ownTarget, err := svc.CreateMemo(authorCtx, &v1pb.CreateMemoRequest{
+		Memo: &v1pb.Memo{Content: "作者自己的被引笔记。", Visibility: v1pb.Visibility_PRIVATE},
+	})
+	require.NoError(t, err)
+	foreignTarget, err := svc.CreateMemo(otherCtx, &v1pb.CreateMemoRequest{
+		Memo: &v1pb.Memo{Content: "他人的私密笔记。", Visibility: v1pb.Visibility_PRIVATE},
+	})
+	require.NoError(t, err)
+	memo, err := svc.CreateMemo(authorCtx, &v1pb.CreateMemoRequest{
+		Memo: &v1pb.Memo{Content: "正文。", Visibility: v1pb.Visibility_PRIVATE},
+	})
+	require.NoError(t, err)
+
+	relationType := store.MemoRelationReference
+	for _, target := range []*v1pb.Memo{ownTarget, foreignTarget} {
+		_, err := svc.Store.UpsertMemoRelation(ctx, &store.MemoRelation{
+			MemoID:        storeMemoByName(ctx, t, svc, memo.Name).ID,
+			RelatedMemoID: storeMemoByName(ctx, t, svc, target.Name).ID,
+			Type:          relationType,
+		})
+		require.NoError(t, err)
+	}
+
+	referenced, err := svc.loadAssistantReferencedMemos(ctx, storeMemoByName(ctx, t, svc, memo.Name))
+	require.NoError(t, err)
+	contents := make([]string, 0, len(referenced))
+	for _, candidate := range referenced {
+		contents = append(contents, candidate.Content)
+	}
+	assert.Contains(t, contents, "作者自己的被引笔记。")
+	assert.NotContains(t, contents, "他人的私密笔记。", "a memo the author cannot read must not reach the model")
+}
+
+func TestDropAssistantContextDuplicates(t *testing.T) {
+	referenced := &store.Memo{ID: 7, Content: "referenced"}
+	kept := dropAssistantContextDuplicates([]*store.Memo{
+		{ID: 7, Content: "referenced"},
+		{ID: 8, Content: "background"},
+	}, []*store.Memo{referenced})
+	require.Len(t, kept, 1)
+	assert.Equal(t, int32(8), kept[0].ID)
 }

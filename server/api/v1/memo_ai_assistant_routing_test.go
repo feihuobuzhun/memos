@@ -130,17 +130,32 @@ func TestNormalizeAssistantTagsRejectsOversized(t *testing.T) {
 func TestBuildAssistantInput(t *testing.T) {
 	memo := &store.Memo{Content: "Today I read about deliberate practice."}
 
-	input := buildAssistantInput(memo, nil)
+	input := buildAssistantInput(memo, nil, nil)
 	assert.Contains(t, input, "Today I read about deliberate practice.")
 	assert.NotContains(t, input, "Earlier notes")
+	assert.NotContains(t, input, "referenced")
 
-	withContext := buildAssistantInput(memo, []*store.Memo{
+	withContext := buildAssistantInput(memo, nil, []*store.Memo{
 		{Content: "Earlier thought one."},
 		{Content: "Earlier thought two."},
 	})
 	assert.Contains(t, withContext, "Earlier notes for context")
 	assert.Contains(t, withContext, "Earlier thought one.")
 	assert.Contains(t, withContext, "Earlier thought two.")
+}
+
+func TestBuildAssistantInputReferencesComeFirst(t *testing.T) {
+	memo := &store.Memo{Content: "New note."}
+	input := buildAssistantInput(memo,
+		[]*store.Memo{{Content: "Referenced thought."}},
+		[]*store.Memo{{Content: "Earlier thought."}})
+
+	assert.Contains(t, input, "# Notes referenced by the new note")
+	assert.Contains(t, input, "# Earlier notes for context (most recent first)")
+	assert.Less(t,
+		strings.Index(input, "Referenced thought."),
+		strings.Index(input, "Earlier thought."),
+		"referenced notes must outrank the scope-based background")
 }
 
 func TestTruncateRunesCountsCharactersNotBytes(t *testing.T) {
