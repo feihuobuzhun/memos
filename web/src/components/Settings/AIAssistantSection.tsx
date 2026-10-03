@@ -305,6 +305,7 @@ const AIAssistantSection = () => {
                     </div>
                   ))}
                 </RadioGroup>
+                <p className="text-sm text-muted-foreground">{t("setting.ai-assistant.context-references-note")}</p>
               </div>
 
               {assistant.contextScope !== InstanceSetting_AIAssistantContextScope.CURRENT_MEMO_ONLY && (

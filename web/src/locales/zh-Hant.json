@@ -621,6 +621,7 @@
       "context-count": "參考筆數",
       "context-recent": "最近的卡片",
       "context-scope": "隨卡片一起傳送的內容",
+      "context-references-note": "被引用的卡片總會一併發送，且排在上面的範圍之前。",
       "context-self": "僅這張卡片",
       "context-tag": "同一標籤下的卡片",
       "description": "助手執行於伺服器端，任何用戶端建立的卡片都會被點評。每位助手以自己的帳號發表留言。",
