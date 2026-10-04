@@ -136,6 +136,10 @@ message StorageS3Config {
   // to the S3 endpoint. Only enable this for trusted endpoints that use a self-signed
   // certificate; it removes protection against man-in-the-middle attacks.
   bool insecure_skip_tls_verify = 7;
+  // cdn_domain is an optional public acceleration domain fronting the
+  // bucket (e.g. "https://cdn.example.com"). When set, file requests are
+  // redirected to the CDN instead of being streamed through the server.
+  string cdn_domain = 8;
 }
 
 message InstanceMemoRelatedSetting {

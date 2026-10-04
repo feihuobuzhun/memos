@@ -180,6 +180,7 @@ func convertInstanceStorageSettingFromStore(settingpb *storepb.InstanceStorageSe
 			Bucket:                settingpb.S3Config.Bucket,
 			UsePathStyle:          settingpb.S3Config.UsePathStyle,
 			InsecureSkipTlsVerify: settingpb.S3Config.InsecureSkipTlsVerify,
+			CdnDomain:             settingpb.S3Config.CdnDomain,
 		}
 	}
 	return setting
@@ -207,6 +208,7 @@ func convertInstanceStorageSettingToStore(setting *v1pb.InstanceSetting_StorageS
 			Bucket:                setting.S3Config.Bucket,
 			UsePathStyle:          setting.S3Config.UsePathStyle,
 			InsecureSkipTlsVerify: setting.S3Config.InsecureSkipTlsVerify,
+			CdnDomain:             setting.S3Config.CdnDomain,
 		}
 	}
 	return settingpb
@@ -231,6 +233,7 @@ func convertStorageFromStore(storagepb *storepb.Storage) *v1pb.InstanceSetting_S
 				Bucket:                s3Config.Bucket,
 				UsePathStyle:          s3Config.UsePathStyle,
 				InsecureSkipTlsVerify: s3Config.InsecureSkipTlsVerify,
+				CdnDomain:             s3Config.CdnDomain,
 			},
 		}
 	}
@@ -256,6 +259,7 @@ func convertStorageToStore(storage *v1pb.InstanceSetting_Storage) *storepb.Stora
 				Bucket:                s3Config.Bucket,
 				UsePathStyle:          s3Config.UsePathStyle,
 				InsecureSkipTlsVerify: s3Config.InsecureSkipTlsVerify,
+				CdnDomain:             s3Config.CdnDomain,
 			},
 		}
 	}

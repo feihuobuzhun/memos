@@ -650,6 +650,8 @@
       "badge-recommended": "推荐",
       "bucket": "储存桶（Bucket）",
       "bucket-description": "新附件对象将写入这个存储桶。",
+      "cdn-domain": "CDN 加速域名",
+      "cdn-domain-description": "可选。配置后，文件请求会重定向到这个公开加速域名（如 https://cdn.example.com），不再经过服务器中转。",
       "current-storage": "附件存储",
       "current-storage-description": "选择新附件的保存位置。已有附件仍保留在当前存储位置。",
       "database-description": "将附件二进制内容直接存入应用数据库。",

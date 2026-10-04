@@ -2241,8 +2241,12 @@ type InstanceSetting_Storage_S3Config struct {
 	// to the S3 endpoint. Only enable this for trusted endpoints that use a self-signed
 	// certificate; it removes protection against man-in-the-middle attacks.
 	InsecureSkipTlsVerify bool `protobuf:"varint,7,opt,name=insecure_skip_tls_verify,json=insecureSkipTlsVerify,proto3" json:"insecure_skip_tls_verify,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// cdn_domain is an optional public acceleration domain fronting the
+	// bucket (e.g. "https://cdn.example.com"). When set, file requests are
+	// redirected to the CDN instead of being streamed through the server.
+	CdnDomain     string `protobuf:"bytes,8,opt,name=cdn_domain,json=cdnDomain,proto3" json:"cdn_domain,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *InstanceSetting_Storage_S3Config) Reset() {
@@ -2324,6 +2328,13 @@ func (x *InstanceSetting_Storage_S3Config) GetInsecureSkipTlsVerify() bool {
 	return false
 }
 
+func (x *InstanceSetting_Storage_S3Config) GetCdnDomain() string {
+	if x != nil {
+		return x.CdnDomain
+	}
+	return ""
+}
+
 // Legacy S3 configuration retained for compatibility with existing clients.
 // Reference: https://developers.cloudflare.com/r2/examples/aws/aws-sdk-go/
 type InstanceSetting_StorageSetting_S3Config struct {
@@ -2338,8 +2349,12 @@ type InstanceSetting_StorageSetting_S3Config struct {
 	// to the S3 endpoint. Only enable this for trusted endpoints that use a self-signed
 	// certificate; it removes protection against man-in-the-middle attacks.
 	InsecureSkipTlsVerify bool `protobuf:"varint,7,opt,name=insecure_skip_tls_verify,json=insecureSkipTlsVerify,proto3" json:"insecure_skip_tls_verify,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// cdn_domain is an optional public acceleration domain fronting the
+	// bucket (e.g. "https://cdn.example.com"). When set, file requests are
+	// redirected to the CDN instead of being streamed through the server.
+	CdnDomain     string `protobuf:"bytes,8,opt,name=cdn_domain,json=cdnDomain,proto3" json:"cdn_domain,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *InstanceSetting_StorageSetting_S3Config) Reset() {
@@ -2419,6 +2434,13 @@ func (x *InstanceSetting_StorageSetting_S3Config) GetInsecureSkipTlsVerify() boo
 		return x.InsecureSkipTlsVerify
 	}
 	return false
+}
+
+func (x *InstanceSetting_StorageSetting_S3Config) GetCdnDomain() string {
+	if x != nil {
+		return x.CdnDomain
+	}
+	return ""
 }
 
 // Email delivery configuration for notifications.
@@ -2613,7 +2635,7 @@ const file_api_v1_instance_service_proto_rawDesc = "" +
 	"\tChallenge\x12\x1a\n" +
 	"\bprovider\x18\x01 \x01(\tR\bprovider\x12\x19\n" +
 	"\bsite_key\x18\x02 \x01(\tR\asiteKey\"\x1b\n" +
-	"\x19GetInstanceProfileRequest\"\xc2)\n" +
+	"\x19GetInstanceProfileRequest\"\x80*\n" +
 	"\x0fInstanceSetting\x12\x17\n" +
 	"\x04name\x18\x01 \x01(\tB\x03\xe0A\bR\x04name\x12W\n" +
 	"\x0fgeneral_setting\x18\x02 \x01(\v2,.memos.api.v1.InstanceSetting.GeneralSettingH\x00R\x0egeneralSetting\x12W\n" +
@@ -2636,13 +2658,13 @@ const file_api_v1_instance_service_proto_rawDesc = "" +
 	"\rCustomProfile\x12\x14\n" +
 	"\x05title\x18\x01 \x01(\tR\x05title\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x19\n" +
-	"\blogo_url\x18\x03 \x01(\tR\alogoUrl\x1a\xd2\x03\n" +
+	"\blogo_url\x18\x03 \x01(\tR\alogoUrl\x1a\xf1\x03\n" +
 	"\aStorage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12=\n" +
 	"\x04type\x18\x03 \x01(\x0e2).memos.api.v1.InstanceSetting.StorageTypeR\x04type\x12M\n" +
 	"\ts3_config\x18\n" +
-	" \x01(\v2..memos.api.v1.InstanceSetting.Storage.S3ConfigH\x00R\bs3Config\x1a\x8a\x02\n" +
+	" \x01(\v2..memos.api.v1.InstanceSetting.Storage.S3ConfigH\x00R\bs3Config\x1a\xa9\x02\n" +
 	"\bS3Config\x12\"\n" +
 	"\raccess_key_id\x18\x01 \x01(\tR\vaccessKeyId\x12/\n" +
 	"\x11access_key_secret\x18\x02 \x01(\tB\x03\xe0A\x04R\x0faccessKeySecret\x12\x1a\n" +
@@ -2650,15 +2672,17 @@ const file_api_v1_instance_service_proto_rawDesc = "" +
 	"\x06region\x18\x04 \x01(\tR\x06region\x12\x16\n" +
 	"\x06bucket\x18\x05 \x01(\tR\x06bucket\x12$\n" +
 	"\x0euse_path_style\x18\x06 \x01(\bR\fusePathStyle\x127\n" +
-	"\x18insecure_skip_tls_verify\x18\a \x01(\bR\x15insecureSkipTlsVerifyB\b\n" +
-	"\x06config\x1a\xeb\x05\n" +
+	"\x18insecure_skip_tls_verify\x18\a \x01(\bR\x15insecureSkipTlsVerify\x12\x1d\n" +
+	"\n" +
+	"cdn_domain\x18\b \x01(\tR\tcdnDomainB\b\n" +
+	"\x06config\x1a\x8a\x06\n" +
 	"\x0eStorageSetting\x12[\n" +
 	"\fstorage_type\x18\x01 \x01(\x0e28.memos.api.v1.InstanceSetting.StorageSetting.StorageTypeR\vstorageType\x12+\n" +
 	"\x11filepath_template\x18\x02 \x01(\tR\x10filepathTemplate\x12/\n" +
 	"\x14upload_size_limit_mb\x18\x03 \x01(\x03R\x11uploadSizeLimitMb\x12R\n" +
 	"\ts3_config\x18\x04 \x01(\v25.memos.api.v1.InstanceSetting.StorageSetting.S3ConfigR\bs3Config\x12A\n" +
 	"\bstorages\x18\x05 \x03(\v2%.memos.api.v1.InstanceSetting.StorageR\bstorages\x12,\n" +
-	"\x12default_storage_id\x18\x06 \x01(\tR\x10defaultStorageId\x1a\x8a\x02\n" +
+	"\x12default_storage_id\x18\x06 \x01(\tR\x10defaultStorageId\x1a\xa9\x02\n" +
 	"\bS3Config\x12\"\n" +
 	"\raccess_key_id\x18\x01 \x01(\tR\vaccessKeyId\x12/\n" +
 	"\x11access_key_secret\x18\x02 \x01(\tB\x03\xe0A\x04R\x0faccessKeySecret\x12\x1a\n" +
@@ -2666,7 +2690,9 @@ const file_api_v1_instance_service_proto_rawDesc = "" +
 	"\x06region\x18\x04 \x01(\tR\x06region\x12\x16\n" +
 	"\x06bucket\x18\x05 \x01(\tR\x06bucket\x12$\n" +
 	"\x0euse_path_style\x18\x06 \x01(\bR\fusePathStyle\x127\n" +
-	"\x18insecure_skip_tls_verify\x18\a \x01(\bR\x15insecureSkipTlsVerify\"L\n" +
+	"\x18insecure_skip_tls_verify\x18\a \x01(\bR\x15insecureSkipTlsVerify\x12\x1d\n" +
+	"\n" +
+	"cdn_domain\x18\b \x01(\tR\tcdnDomain\"L\n" +
 	"\vStorageType\x12\x1c\n" +
 	"\x18STORAGE_TYPE_UNSPECIFIED\x10\x00\x12\f\n" +
 	"\bDATABASE\x10\x01\x12\t\n" +

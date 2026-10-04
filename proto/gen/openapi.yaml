@@ -5206,6 +5206,12 @@ components:
                         insecure_skip_tls_verify disables TLS certificate verification when connecting
                          to the S3 endpoint. Only enable this for trusted endpoints that use a self-signed
                          certificate; it removes protection against man-in-the-middle attacks.
+                cdnDomain:
+                    type: string
+                    description: |-
+                        cdn_domain is an optional public acceleration domain fronting the
+                         bucket (e.g. "https://cdn.example.com"). When set, file requests are
+                         redirected to the CDN instead of being streamed through the server.
             description: |-
                 Legacy S3 configuration retained for compatibility with existing clients.
                  Reference: https://developers.cloudflare.com/r2/examples/aws/aws-sdk-go/
@@ -5231,6 +5237,12 @@ components:
                         insecure_skip_tls_verify disables TLS certificate verification when connecting
                          to the S3 endpoint. Only enable this for trusted endpoints that use a self-signed
                          certificate; it removes protection against man-in-the-middle attacks.
+                cdnDomain:
+                    type: string
+                    description: |-
+                        cdn_domain is an optional public acceleration domain fronting the
+                         bucket (e.g. "https://cdn.example.com"). When set, file requests are
+                         redirected to the CDN instead of being streamed through the server.
             description: |-
                 S3 configuration for an S3-compatible object store.
                  Reference: https://developers.cloudflare.com/r2/examples/aws/aws-sdk-go/
