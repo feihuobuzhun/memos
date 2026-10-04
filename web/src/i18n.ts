@@ -3,57 +3,15 @@ import { orderBy } from "lodash-es";
 import { initReactI18next } from "react-i18next";
 import { findNearestMatchedLanguage } from "./utils/i18n";
 
-export const locales = orderBy([
-  "ar",
-  "az",
-  "bg",
-  "ca",
-  "cs",
-  "da",
-  "de",
-  "el",
-  "en",
-  "en-GB",
-  "es",
-  "et",
-  "fa",
-  "fi",
-  "fr",
-  "gl",
-  "he",
-  "hi",
-  "hr",
-  "hu",
-  "id",
-  "it",
-  "ja",
-  "ka-GE",
-  "ko",
-  "lt",
-  "lv",
-  "mr",
-  "nb",
-  "nl",
-  "pl",
-  "pt-PT",
-  "pt-BR",
-  "ro",
-  "ru",
-  "sk",
-  "sl",
-  "sr",
-  "sv",
-  "th",
-  "tr",
-  "uk",
-  "vi",
-  "zh-Hans",
-  "zh-Hant",
-]);
+// This instance ships Simplified Chinese and English only.
+export const locales = orderBy(["en", "zh-Hans"]);
 
 const fallbacks = {
-  "zh-HK": ["zh-Hant", "en"],
-  "zh-TW": ["zh-Hant", "en"],
+  // Every Chinese variant falls back to Simplified Chinese; everything else
+  // falls back to English through the default entry below.
+  "zh-HK": ["zh-Hans", "en"],
+  "zh-TW": ["zh-Hans", "en"],
+  "zh-Hant": ["zh-Hans", "en"],
   zh: ["zh-Hans", "en"],
 } as FallbackLngObjList;
 
