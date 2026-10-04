@@ -1025,3 +1025,75 @@ func TestThumbnailFailureMarkerOnlyForUnsupportedImages(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Equal(t, "image/jpeg", rec.Header().Get(echo.HeaderContentType))
 }
+func TestServeAttachmentFile_S3CDNDomainRedirects(t *testing.T) {
+	ctx := context.Background()
+	fake := fakes3.New(t, "file-server-cdn")
+	svc, fs, stores, cleanup := newShareAttachmentTestServices(ctx, t)
+	defer cleanup()
+
+	s3Config := fake.Config("file-server-cdn")
+	s3Config.CdnDomain = "cdn.example.com"
+	configuredStorage := &storepb.Storage{
+		Id:     "s3-cdn",
+		Name:   "CDN-fronted S3",
+		Type:   storepb.StorageType_STORAGE_TYPE_S3,
+		Config: &storepb.Storage_S3Config{S3Config: s3Config},
+	}
+	_, err := stores.UpsertInstanceSetting(ctx, &storepb.InstanceSetting{
+		Key: storepb.InstanceSettingKey_STORAGE,
+		Value: &storepb.InstanceSetting_StorageSetting{StorageSetting: &storepb.InstanceStorageSetting{
+			FilepathTemplate:  "files/{uuid}_{filename}",
+			UploadSizeLimitMb: 30,
+			Storages:          []*storepb.Storage{configuredStorage},
+			DefaultStorageId:  configuredStorage.Id,
+		}},
+	})
+	require.NoError(t, err)
+
+	creator, err := stores.CreateUser(ctx, &store.User{
+		Username: "s3-cdn-owner",
+		Role:     store.RoleUser,
+		Email:    "s3-cdn-owner@example.com",
+	})
+	require.NoError(t, err)
+	creatorCtx := context.WithValue(ctx, auth.UserIDContextKey, creator.ID)
+	attachment, err := svc.CreateAttachment(creatorCtx, &apiv1.CreateAttachmentRequest{Attachment: &apiv1.Attachment{
+		Filename: "document.txt",
+		Type:     "text/plain",
+		Content:  []byte("served through the CDN"),
+	}})
+	require.NoError(t, err)
+	_, err = svc.CreateMemo(creatorCtx, &apiv1.CreateMemoRequest{Memo: &apiv1.Memo{
+		Content:     "public CDN attachment",
+		Visibility:  apiv1.Visibility_PUBLIC,
+		Attachments: []*apiv1.Attachment{{Name: attachment.Name}},
+	}})
+	require.NoError(t, err)
+
+	e := echo.New()
+	fs.RegisterRoutes(e)
+
+	// A plain file request redirects to the CDN instead of streaming bytes.
+	recorder := httptest.NewRecorder()
+	e.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, fmt.Sprintf("/file/%s/%s", attachment.Name, attachment.Filename), nil))
+	require.Equal(t, http.StatusFound, recorder.Code)
+	location := recorder.Header().Get(echo.HeaderLocation)
+	require.True(t, strings.HasPrefix(location, "https://cdn.example.com/files/"), location)
+	require.True(t, strings.HasSuffix(location, "_document.txt"), location)
+
+	// Thumbnails are generated server-side, so they keep streaming through.
+	thumbnailRecorder := httptest.NewRecorder()
+	e.ServeHTTP(thumbnailRecorder, httptest.NewRequest(http.MethodGet, fmt.Sprintf("/file/%s/%s?thumbnail=true", attachment.Name, attachment.Filename), nil))
+	require.Equal(t, http.StatusOK, thumbnailRecorder.Code)
+	require.Empty(t, thumbnailRecorder.Header().Get(echo.HeaderLocation))
+}
+
+func TestCDNRedirectURL(t *testing.T) {
+	fs := &FileServerService{}
+
+	t.Run("no payload", func(t *testing.T) {
+		url, err := fs.cdnRedirectURL(context.Background(), &store.Attachment{})
+		require.NoError(t, err)
+		require.Empty(t, url)
+	})
+}

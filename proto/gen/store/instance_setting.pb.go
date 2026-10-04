@@ -970,8 +970,12 @@ type StorageS3Config struct {
 	// to the S3 endpoint. Only enable this for trusted endpoints that use a self-signed
 	// certificate; it removes protection against man-in-the-middle attacks.
 	InsecureSkipTlsVerify bool `protobuf:"varint,7,opt,name=insecure_skip_tls_verify,json=insecureSkipTlsVerify,proto3" json:"insecure_skip_tls_verify,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// cdn_domain is an optional public acceleration domain fronting the
+	// bucket (e.g. "https://cdn.example.com"). When set, file requests are
+	// redirected to the CDN instead of being streamed through the server.
+	CdnDomain     string `protobuf:"bytes,8,opt,name=cdn_domain,json=cdnDomain,proto3" json:"cdn_domain,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *StorageS3Config) Reset() {
@@ -1051,6 +1055,13 @@ func (x *StorageS3Config) GetInsecureSkipTlsVerify() bool {
 		return x.InsecureSkipTlsVerify
 	}
 	return false
+}
+
+func (x *StorageS3Config) GetCdnDomain() string {
+	if x != nil {
+		return x.CdnDomain
+	}
+	return ""
 }
 
 type InstanceMemoRelatedSetting struct {
@@ -1984,7 +1995,7 @@ const file_store_instance_setting_proto_rawDesc = "" +
 	"\x18STORAGE_TYPE_UNSPECIFIED\x10\x00\x12\f\n" +
 	"\bDATABASE\x10\x01\x12\t\n" +
 	"\x05LOCAL\x10\x02\x12\x06\n" +
-	"\x02S3\x10\x03\"\x8c\x02\n" +
+	"\x02S3\x10\x03\"\xab\x02\n" +
 	"\x0fStorageS3Config\x12\"\n" +
 	"\raccess_key_id\x18\x01 \x01(\tR\vaccessKeyId\x12*\n" +
 	"\x11access_key_secret\x18\x02 \x01(\tR\x0faccessKeySecret\x12\x1a\n" +
@@ -1992,7 +2003,9 @@ const file_store_instance_setting_proto_rawDesc = "" +
 	"\x06region\x18\x04 \x01(\tR\x06region\x12\x16\n" +
 	"\x06bucket\x18\x05 \x01(\tR\x06bucket\x12$\n" +
 	"\x0euse_path_style\x18\x06 \x01(\bR\fusePathStyle\x127\n" +
-	"\x18insecure_skip_tls_verify\x18\a \x01(\bR\x15insecureSkipTlsVerify\"\xc5\x01\n" +
+	"\x18insecure_skip_tls_verify\x18\a \x01(\bR\x15insecureSkipTlsVerify\x12\x1d\n" +
+	"\n" +
+	"cdn_domain\x18\b \x01(\tR\tcdnDomain\"\xc5\x01\n" +
 	"\x1aInstanceMemoRelatedSetting\x120\n" +
 	"\x14content_length_limit\x18\x03 \x01(\x05R\x12contentLengthLimit\x127\n" +
 	"\x18enable_double_click_edit\x18\x04 \x01(\bR\x15enableDoubleClickEdit\x12\x1c\n" +

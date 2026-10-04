@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -174,6 +175,19 @@ func (s *FileServerService) serveAttachmentFile(c *echo.Context) error {
 
 	if wantMotion {
 		return s.serveMotionClip(c, attachment)
+	}
+
+	// An S3 storage may declare a public CDN domain fronting the bucket.
+	// Redirect there instead of proxying every byte through this server.
+	// Thumbnails are excluded: they are generated server-side from the blob.
+	if !wantThumbnail && attachment.StorageType == storepb.AttachmentStorageType_S3 {
+		redirectURL, err := s.cdnRedirectURL(ctx, attachment)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "failed to resolve CDN URL").Wrap(err)
+		}
+		if redirectURL != "" {
+			return c.Redirect(http.StatusFound, redirectURL)
+		}
 	}
 
 	contentType := sanitizeContentType(attachment.Type)
@@ -350,6 +364,42 @@ func (s *FileServerService) resolveLocalPath(reference string) string {
 		filePath = filepath.Join(s.Profile.Data, filePath)
 	}
 	return filePath
+}
+
+// cdnRedirectURL returns the public CDN URL for an S3-backed attachment when
+// its storage declares an acceleration domain, or "" when the request must
+// keep streaming through the server. The caller has already authorized the
+// read, and the object key is as unguessable as the attachment UID that gates
+// it, so exposing the key to the client changes nothing.
+func (s *FileServerService) cdnRedirectURL(ctx context.Context, attachment *store.Attachment) (string, error) {
+	s3Object := attachment.Payload.GetS3Object()
+	if s3Object == nil || s3Object.Key == "" {
+		return "", nil
+	}
+	setting, err := s.Store.GetInstanceStorageSetting(ctx)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get instance storage setting")
+	}
+	resolvedStorage, err := store.ResolveStorage(setting, s3Object.StorageId, s3Object.S3Config)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to resolve storage")
+	}
+	cdnDomain := strings.TrimSpace(resolvedStorage.GetS3Config().GetCdnDomain())
+	if cdnDomain == "" {
+		return "", nil
+	}
+	if !strings.HasPrefix(cdnDomain, "http://") && !strings.HasPrefix(cdnDomain, "https://") {
+		cdnDomain = "https://" + cdnDomain
+	}
+	cdnDomain = strings.TrimSuffix(cdnDomain, "/")
+
+	// Escape each key segment so filenames with spaces or non-ASCII characters
+	// survive the redirect without breaking the path structure.
+	segments := strings.Split(s3Object.Key, "/")
+	for index, segment := range segments {
+		segments[index] = url.PathEscape(segment)
+	}
+	return cdnDomain + "/" + strings.Join(segments, "/"), nil
 }
 
 // streamS3Object streams S3 content through the server, forwarding a supported

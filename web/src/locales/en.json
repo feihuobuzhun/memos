@@ -981,6 +981,8 @@
       "badge-recommended": "Recommended",
       "bucket": "Bucket",
       "bucket-description": "Bucket where new attachment objects will be stored.",
+      "cdn-domain": "CDN domain",
+      "cdn-domain-description": "Optional. Redirect file requests to this public acceleration domain (e.g. https://cdn.example.com) instead of streaming through the server.",
       "current-storage": "Attachment storage",
       "current-storage-description": "Choose where new attachments are stored. Existing attachments remain in their current storage location.",
       "database-description": "Store attachment blobs directly in the application database.",

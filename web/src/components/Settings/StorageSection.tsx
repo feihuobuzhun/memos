@@ -236,6 +236,7 @@ const StorageSection = () => {
             bucket: existing?.bucket ?? "",
             usePathStyle: existing?.usePathStyle ?? false,
             insecureSkipTlsVerify: existing?.insecureSkipTlsVerify ?? false,
+            cdnDomain: existing?.cdnDomain ?? "",
             [field]: value,
           }),
         },
@@ -447,6 +448,15 @@ const StorageSection = () => {
             <Switch
               checked={selectedS3Config?.insecureSkipTlsVerify ?? false}
               onCheckedChange={(checked) => handleS3FieldChange("insecureSkipTlsVerify", checked)}
+            />
+          </SettingRow>
+
+          <SettingRow label={t("setting.storage.cdn-domain")} description={t("setting.storage.cdn-domain-description")}>
+            <Input
+              className="w-64"
+              placeholder="https://cdn.example.com"
+              value={selectedS3Config?.cdnDomain ?? ""}
+              onChange={(e) => handleS3FieldChange("cdnDomain", e.target.value)}
             />
           </SettingRow>
         </SettingGroup>
