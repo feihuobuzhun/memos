@@ -581,6 +581,7 @@
       "context-count": "Reference count",
       "context-recent": "Recent memos",
       "context-scope": "What to send with the memo",
+      "context-references-note": "Memos this note links to are always sent too, ahead of the scope above.",
       "context-self": "Only this memo",
       "context-tag": "Memos under the same tag",
       "description": "Assistants run on the server, so memos created from any client are reviewed. Each assistant comments under its own account.",
