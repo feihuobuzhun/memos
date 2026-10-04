@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import i18n from "@/i18n";
-import { getLocaleDirection, loadLocale, subscribeToLocaleDirection } from "@/utils/i18n";
+import { applyDocumentLocale, getLocaleDirection, subscribeToLocaleDirection } from "@/utils/i18n";
 
 const originalLanguage = i18n.language;
 const originalLangAttribute = document.documentElement.getAttribute("lang");
@@ -22,13 +22,16 @@ describe("document locale direction", () => {
     await i18n.changeLanguage(originalLanguage);
   });
 
+  // applyDocumentLocale only computes direction from the locale code itself
+  // (via i18next's built-in RTL list), so it is exercised directly here with
+  // RTL language codes even though this build only ships en / zh-Hans.
   it.each([
     ["ar", "rtl"],
     ["fa", "rtl"],
     ["he", "rtl"],
     ["en", "ltr"],
   ] as const)("sets %s as a %s document", (locale, direction) => {
-    loadLocale(locale);
+    applyDocumentLocale(locale);
 
     expect(document.documentElement).toHaveAttribute("lang", locale);
     expect(document.documentElement).toHaveAttribute("dir", direction);
@@ -38,7 +41,7 @@ describe("document locale direction", () => {
     const listener = vi.fn();
     const unsubscribe = subscribeToLocaleDirection(listener);
 
-    loadLocale("ar");
+    applyDocumentLocale("ar");
 
     expect(getLocaleDirection()).toBe("rtl");
     expect(listener).toHaveBeenCalledOnce();
