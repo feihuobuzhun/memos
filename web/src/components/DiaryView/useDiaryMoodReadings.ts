@@ -37,10 +37,13 @@ export const useDiaryMoodReadings = ({ days, today, trendStartDate, enabled }: O
   const { data } = useDiaryMoods(startDate, today, { enabled });
   const analyze = useAnalyzeDiaryMood();
   const [readingDate, setReadingDate] = useState<string>();
-  // A day that was already asked about is never asked again in this session,
+  // Keyed by date, value is the day's entry count at the time it was last
+  // asked about in this session. A day is not asked again for the same count,
   // whether the answer was a mood or an error, so a failing provider cannot
-  // turn the feed into a retry loop.
-  const attempted = useRef(new Set<string>());
+  // turn the feed into a retry loop — but a new entry changes the count, so
+  // writing more for the day does ask again instead of staying stuck on the
+  // first answer.
+  const attempted = useRef(new Map<string, number>());
 
   const moodByDate = useMemo(() => {
     const entries = new Map<string, DiaryMood>();
@@ -54,7 +57,8 @@ export const useDiaryMoodReadings = ({ days, today, trendStartDate, enabled }: O
   const read = useCallback(
     (date: string, options?: { force?: boolean; silent?: boolean }) => {
       if (readingDate) return;
-      attempted.current.add(date);
+      const entryCount = days.find((day) => day.date === date)?.memos.length ?? 0;
+      attempted.current.set(date, entryCount);
       setReadingDate(date);
       analyze
         .mutateAsync({ date, force: options?.force })
@@ -64,17 +68,23 @@ export const useDiaryMoodReadings = ({ days, today, trendStartDate, enabled }: O
         })
         .finally(() => setReadingDate(undefined));
     },
-    [analyze, readingDate],
+    [analyze, readingDate, days],
   );
 
   // One day at a time, so a diary opened after a long absence does not fire a
-  // burst of provider calls.
+  // burst of provider calls. A day whose stored reading already covers every
+  // entry it currently has is left alone; one whose entry count has moved on
+  // — including past days that gained a new entry after an earlier reading —
+  // is read again, as long as it has not already been asked about at this
+  // same count this session.
   useEffect(() => {
     if (!enabled || !available || readingDate) return;
-    const next = days.find(
-      (day) =>
-        !moodByDate.has(day.date) && !attempted.current.has(day.date) && diaryDayDistance(day.date, today) <= AUTO_DIARY_MOOD_WINDOW_DAYS,
-    );
+    const next = days.find((day) => {
+      if (diaryDayDistance(day.date, today) > AUTO_DIARY_MOOD_WINDOW_DAYS) return false;
+      const mood = moodByDate.get(day.date);
+      if (mood && mood.memoCount === day.memos.length) return false;
+      return attempted.current.get(day.date) !== day.memos.length;
+    });
     if (!next) return;
     read(next.date, { silent: true });
   }, [enabled, available, readingDate, days, moodByDate, today, read]);

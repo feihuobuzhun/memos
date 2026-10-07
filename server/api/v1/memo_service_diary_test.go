@@ -255,3 +255,36 @@ func TestDiaryDayWindow(t *testing.T) {
 	_, err = parseDiaryDate("14/03/2026")
 	require.Error(t, err)
 }
+
+// TestAnalyzeDiaryMood_CarriesRecentTrendAsContext checks that an already
+// stored reading of a nearby day rides along as compact context, without
+// resending that day's own diary text.
+func TestAnalyzeDiaryMood_CarriesRecentTrendAsContext(t *testing.T) {
+	ctx := context.Background()
+	svc := newIntegrationService(t)
+	author := createSpaceTestUser(ctx, t, svc, "writer", store.RoleUser)
+	authorCtx := userCtx(ctx, author.ID)
+	completer := installStubDiaryMoodProvider(ctx, t, svc,
+		`{"label": "平静", "score": 10, "summary": "还好。"}`)
+
+	createDiaryMemoAt(ctx, t, svc, author, "#日记 第一天写的内容。", time.Date(2026, 3, 13, 12, 0, 0, 0, time.UTC))
+	first, err := svc.AnalyzeDiaryMood(authorCtx, &v1pb.AnalyzeDiaryMoodRequest{Date: "2026-03-13"})
+	require.NoError(t, err)
+	require.NotNil(t, first.Mood)
+
+	createDiaryMemoAt(ctx, t, svc, author, "#日记 第二天写的内容。", time.Date(2026, 3, 14, 12, 0, 0, 0, time.UTC))
+	second, err := svc.AnalyzeDiaryMood(authorCtx, &v1pb.AnalyzeDiaryMoodRequest{Date: "2026-03-14"})
+	require.NoError(t, err)
+	require.NotNil(t, second.Mood)
+
+	require.Len(t, completer.requests, 2)
+	// The first day had no earlier reading to draw on.
+	assert.NotContains(t, completer.requests[0].Input, "Recent mood trend")
+	// The second day's prompt carries the first day's stored reading as
+	// context, but never the first day's own diary text.
+	secondInput := completer.requests[1].Input
+	assert.Contains(t, secondInput, "Recent mood trend")
+	assert.Contains(t, secondInput, "2026-03-13: 平静")
+	assert.Contains(t, secondInput, "第二天写的内容")
+	assert.NotContains(t, secondInput, "第一天写的内容")
+}

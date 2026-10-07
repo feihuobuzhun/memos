@@ -52,6 +52,10 @@ const (
 	maxDiaryMoodKeywords = 5
 	// maxDiaryMoodKeywordChars bounds one stored keyword.
 	maxDiaryMoodKeywordChars = 40
+	// maxDiaryMoodContextDays bounds how many days before the one being read
+	// are shown as trend context. The context is built from readings already
+	// taken, not reprocessed diary text, so it costs nothing extra to include.
+	maxDiaryMoodContextDays = 7
 
 	// defaultDiaryMoodPrompt is used when no custom prompt is configured. The
 	// structural labels stay in English so they read the same to every model;
@@ -183,12 +187,15 @@ func (s *APIV1Service) AnalyzeDiaryMood(ctx context.Context, request *v1pb.Analy
 		return &v1pb.AnalyzeDiaryMoodResponse{}, nil
 	}
 
+	// Loaded once and reused for both the no-op check below and the trend
+	// context handed to the model: both read the same stored readings.
+	stored, err := s.loadDiaryMoods(ctx, user.ID)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to read diary moods: %v", err)
+	}
+
 	digest := diaryDayDigest(request.GetDate(), model, prompt, memos)
 	if !request.GetForce() {
-		stored, err := s.loadDiaryMoods(ctx, user.ID)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to read diary moods: %v", err)
-		}
 		for _, mood := range stored {
 			if mood.GetDate() == request.GetDate() && mood.GetSourceDigest() == digest {
 				return &v1pb.AnalyzeDiaryMoodResponse{Mood: convertDiaryMoodFromStore(mood)}, nil
@@ -202,10 +209,11 @@ func (s *APIV1Service) AnalyzeDiaryMood(ctx context.Context, request *v1pb.Analy
 	}
 	readCtx, cancel := context.WithTimeout(ctx, diaryMoodTimeout)
 	defer cancel()
+	trendContext := buildDiaryMoodContext(request.GetDate(), stored)
 	response, err := completer.Complete(readCtx, chat.Request{
 		Model:        model,
 		Instructions: prompt,
-		Input:        buildDiaryMoodInput(request.GetDate(), memos),
+		Input:        buildDiaryMoodInput(request.GetDate(), memos, trendContext),
 		MaxTokens:    diaryMoodResponseMaxTokens,
 	})
 	if err != nil {
@@ -300,11 +308,55 @@ func diaryDayDigest(date, model, prompt string, memos []*store.Memo) string {
 	return hex.EncodeToString(digest.Sum(nil))
 }
 
+// buildDiaryMoodContext renders a compact trend of the stored readings for
+// the days right before the one being read. It is built entirely from
+// readings already taken — never from the earlier days' own diary text — so a
+// long history costs nothing extra to include: there is nothing left to pay
+// a provider for.
+func buildDiaryMoodContext(date string, stored []*storepb.DiaryMood) string {
+	parsedDate, err := parseDiaryDate(date)
+	if err != nil {
+		return ""
+	}
+	cutoff := parsedDate.AddDate(0, 0, -maxDiaryMoodContextDays).Format(time.DateOnly)
+
+	var matched []*storepb.DiaryMood
+	for _, mood := range stored {
+		if d := mood.GetDate(); d < date && d >= cutoff {
+			matched = append(matched, mood)
+		}
+	}
+	if len(matched) == 0 {
+		return ""
+	}
+	// stored sorts newest first; the trend reads forward from the earliest day.
+	slices.Reverse(matched)
+
+	var builder strings.Builder
+	builder.WriteString("# Recent mood trend (context only)\n")
+	builder.WriteString("These are readings already taken of the days just before this one. They are " +
+		"for background only: judge today from today's own entries below, not from this trend.\n")
+	for _, mood := range matched {
+		fmt.Fprintf(&builder, "- %s: %s", mood.GetDate(), strings.TrimSpace(mood.GetLabel()))
+		fmt.Fprintf(&builder, " (score %d)", mood.GetScore())
+		if len(mood.GetKeywords()) > 0 {
+			fmt.Fprintf(&builder, " — %s", strings.Join(mood.GetKeywords(), ", "))
+		}
+		builder.WriteString("\n")
+	}
+	return builder.String()
+}
+
 // buildDiaryMoodInput renders the day as the user payload sent alongside the
 // prompt. Entries keep their clock time, because "wrote this at 2am" is part of
-// what a day felt like.
-func buildDiaryMoodInput(date string, memos []*store.Memo) string {
+// what a day felt like. The trend context, if any, is rendered first and kept
+// separate from the day's own entries.
+func buildDiaryMoodInput(date string, memos []*store.Memo, trendContext string) string {
 	var builder strings.Builder
+	if trendContext != "" {
+		builder.WriteString(trendContext)
+		builder.WriteString("\n")
+	}
 	fmt.Fprintf(&builder, "# Diary day %s\n", date)
 	remaining := maxDiaryMoodInputChars
 	for _, memo := range memos {
