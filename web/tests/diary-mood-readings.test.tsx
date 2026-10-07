@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AUTO_DIARY_MOOD_WINDOW_DAYS, useDiaryMoodReadings } from "@/components/DiaryView/useDiaryMoodReadings";
 import type { DiaryDay } from "@/lib/diary";
-import { DiaryMoodSchema } from "@/types/proto/api/v1/memo_service_pb";
+import { DiaryMoodSchema, MemoSchema } from "@/types/proto/api/v1/memo_service_pb";
 
 const analyze = vi.fn();
 const moodsQuery = vi.fn();
@@ -101,5 +101,27 @@ describe("useDiaryMoodReadings", () => {
     });
 
     expect(analyze).toHaveBeenCalledWith({ date: TODAY, force: true });
+  });
+
+  it("re-reads a day automatically once a new entry is added after an earlier reading", async () => {
+    setStoredMoods([]);
+    moodsQuery.mockReturnValue({
+      data: { moods: [create(DiaryMoodSchema, { date: TODAY, label: "平静", memoCount: 1 })], available: true },
+    });
+    const oneEntry: DiaryDay[] = [{ date: TODAY, memos: [create(MemoSchema, {})] }];
+    const twoEntries: DiaryDay[] = [{ date: TODAY, memos: [create(MemoSchema, {}), create(MemoSchema, {})] }];
+
+    const { rerender } = renderHook(
+      (days: DiaryDay[]) => useDiaryMoodReadings({ days, today: TODAY, trendStartDate: dayBefore(13), enabled: true }),
+      { initialProps: oneEntry },
+    );
+
+    // The stored reading already covers the day's single entry, so it is
+    // left alone.
+    await waitFor(() => expect(analyze).not.toHaveBeenCalled());
+
+    rerender(twoEntries);
+
+    await waitFor(() => expect(analyze).toHaveBeenCalledWith({ date: TODAY, force: undefined }));
   });
 });
