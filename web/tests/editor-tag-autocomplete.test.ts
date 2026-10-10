@@ -8,8 +8,8 @@ import { buildEditorExtensions } from "@/components/MemoEditor/Editor/extensions
 import { makeTagCompletionSource } from "@/components/MemoEditor/Editor/tagAutocomplete";
 import { memoMarkdownExtensions } from "@/utils/memo-markdown-extension";
 
-function complete(doc: string, pos: number, tags: string[], explicit = false) {
-  const source = makeTagCompletionSource(() => tags);
+function complete(doc: string, pos: number, tags: string[], explicit = false, recent?: string[]) {
+  const source = makeTagCompletionSource(() => tags, recent && (() => recent));
   const state = EditorState.create({ doc, extensions: [markdown({ extensions: memoMarkdownExtensions })] });
   return source(new CompletionContext(state, pos, explicit));
 }
@@ -25,18 +25,26 @@ describe("tag autocomplete", () => {
     expect(result?.options.map((o) => o.label)).toEqual(["todo", "work"]);
   });
 
-  it.each([
-    "#",
-    "##",
-    "######",
-    "   #",
-    "> #",
-    "> > ###",
-    "- #",
-    "1. ##",
-    "- item\n  #",
-    "> - ##",
-  ])("does not automatically complete an opening heading marker: %s", (doc) => expect(complete(doc, doc.length, ["todo"])).toBeNull());
+  it.each(["##", "######", "> > ###", "1. ##", "> - ##"])("does not automatically complete an opening heading marker: %s", (doc) =>
+    expect(complete(doc, doc.length, ["todo"])).toBeNull());
+
+  it.each(["#", "   #", "> #", "- #", "- item\n  #"])("offers tags after a lone # that ends the line: %s", (doc) => {
+    const result = complete(doc, doc.length, ["todo"]);
+    expect(result?.from).toBe(doc.length);
+    expect(result?.options.map((o) => o.label)).toEqual(["todo"]);
+  });
+
+  it("offers only the five most recent known tags after a bare hash", () => {
+    const tags = ["a", "b", "c", "d", "e", "f", "g"];
+    const recent = ["g", "unknown", "c", "a", "f", "b", "e"];
+    expect(complete("#", 1, tags, false, recent)?.options.map((o) => o.label)).toEqual(["g", "c", "a", "f", "b"]);
+    expect(complete("hello #", 7, tags, false, recent)?.options.map((o) => o.label)).toEqual(["g", "c", "a", "f", "b"]);
+  });
+
+  it("falls back to every tag without recency, and ignores recency once text is typed", () => {
+    expect(complete("#", 1, ["a", "b"], false, [])?.options.map((o) => o.label)).toEqual(["a", "b"]);
+    expect(complete("#a", 2, ["a", "ab", "b"], false, ["b"])?.options.map((o) => o.label)).toEqual(["a", "ab"]);
+  });
 
   it("does not complete an opening heading marker before existing heading text", () => {
     for (const pos of [1, 2, 3]) expect(complete("## heading", pos, ["todo"])).toBeNull();
@@ -142,6 +150,7 @@ describe("tag autocomplete", () => {
 describe("tag completion popup", () => {
   it.each([
     ["hello ", "#", "hello #software/hosted/Memos"],
+    ["", "#", "#software/hosted/Memos"],
     ["", "#Mem", "#software/hosted/Memos"],
     ["", "#software/hosted/", "#software/hosted/Memos"],
   ])("opens and inserts a full nested tag after typing %s%s", async (initial, input, expected) => {
