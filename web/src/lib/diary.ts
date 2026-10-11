@@ -1,4 +1,6 @@
 import { timestampDate } from "@bufbuild/protobuf/wkt";
+import { deriveDefaultCreateTimeFromDate } from "@/components/MemoEditor/utils/deriveDefaultCreateTime";
+import { parseLocalDate } from "@/lib/calendar-utils";
 import type { Memo } from "@/types/proto/api/v1/memo_service_pb";
 import type { UserSetting_DiarySetting } from "@/types/proto/api/v1/user_service_pb";
 
@@ -82,3 +84,19 @@ export const diaryMoodTone = (score: number): DiaryMoodTone => {
   if (score <= -25) return "heavy";
   return "even";
 };
+
+/** The calendar day `days` away from a `YYYY-MM-DD` day (negative goes back). */
+export const shiftDiaryDate = (date: string, days: number): string => {
+  const parsed = parseLocalDate(date);
+  if (!parsed) return date;
+  parsed.setDate(parsed.getDate() + days);
+  return localDiaryDate(parsed);
+};
+
+/**
+ * The create time for a new entry written for `entryDate`. Today needs none —
+ * the entry is stamped when it is saved. A past day keeps the current wall-clock
+ * time so entries still order naturally within it.
+ */
+export const diaryEntryCreateTime = (entryDate: string, today: string, now: Date = new Date()): Date | undefined =>
+  entryDate === today ? undefined : deriveDefaultCreateTimeFromDate(entryDate, now);

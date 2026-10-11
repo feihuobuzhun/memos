@@ -82,6 +82,9 @@
   },
   "diary": {
     "title": "Diary",
+    "entry-date": "Write for",
+    "previous-day": "Previous day",
+    "next-day": "Next day",
     "selected-tags": "Entries tagged {{tags}}",
     "editor-placeholder": "How was today?",
     "empty": "No diary entries yet. Whatever you tag as diary shows up here.",

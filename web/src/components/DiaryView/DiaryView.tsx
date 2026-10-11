@@ -11,12 +11,13 @@ import { diaryMoodAnalysisEnabled, useDiarySetting } from "@/hooks/useDiaryQueri
 import { useInfiniteMemos } from "@/hooks/useMemoQueries";
 import { combineCELFilters } from "@/lib/cel-filter";
 import { LOADING_INDICATOR_DELAY_MS } from "@/lib/constants";
-import { buildDiaryFilter, effectiveDiaryTags, groupMemosByDay, localDiaryDate } from "@/lib/diary";
+import { buildDiaryFilter, diaryEntryCreateTime, effectiveDiaryTags, groupMemosByDay, localDiaryDate } from "@/lib/diary";
 import { buildMemoCreatorFilter } from "@/lib/resource-names";
 import { ROUTES } from "@/router/routes";
 import { State } from "@/types/proto/api/v1/common_pb";
 import { useTranslate } from "@/utils/i18n";
 import DiaryDaySection from "./DiaryDaySection";
+import DiaryEntryDate from "./DiaryEntryDate";
 import DiaryMoodTrend, { diaryTrendStartDate } from "./DiaryMoodTrend";
 import DiarySettingsDialog from "./DiarySettingsDialog";
 import { useDiaryMoodReadings } from "./useDiaryMoodReadings";
@@ -53,6 +54,10 @@ const DiaryView = () => {
   // The reader's today is fixed for the visit: a diary left open overnight is
   // not worth a timer, and the next navigation gets the new day.
   const today = useMemo(() => localDiaryDate(new Date()), []);
+  // The day a new entry is written for; today unless the reader steps back to
+  // write up an earlier day.
+  const [entryDate, setEntryDate] = useState(today);
+  const entryCreateTime = useMemo(() => diaryEntryCreateTime(entryDate, today), [entryDate, today]);
   const moodEnabled = diaryMoodAnalysisEnabled(diarySetting);
   const { moodByDate, available, readingDate, readDay } = useDiaryMoodReadings({
     days,
@@ -107,12 +112,16 @@ const DiaryView = () => {
         {/* The editor is keyed on the tag it seeds, so it waits for the setting
             rather than remounting under a reader who already started writing. */}
         {currentUser && !isSettingLoading && (
-          <MemoEditor
-            key={seedContent}
-            cacheKey="diary-memo-editor"
-            placeholder={t("diary.editor-placeholder")}
-            defaultContent={seedContent}
-          />
+          <>
+            <DiaryEntryDate value={entryDate} today={today} onChange={setEntryDate} />
+            <MemoEditor
+              key={seedContent}
+              cacheKey="diary-memo-editor"
+              placeholder={t("diary.editor-placeholder")}
+              defaultContent={seedContent}
+              defaultCreateTime={entryCreateTime}
+            />
+          </>
         )}
 
         {isPending ? (
