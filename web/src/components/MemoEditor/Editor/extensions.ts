@@ -66,6 +66,7 @@ export interface EditorExtensionsOptions {
   onUpdate: () => void;
   onSubmit: () => void;
   getTags: () => string[];
+  getRecentTags?: () => string[];
   searchMemos: MemoReferenceSearch;
 }
 
@@ -89,6 +90,7 @@ export function buildEditorExtensions({
   onUpdate,
   onSubmit,
   getTags,
+  getRecentTags,
   searchMemos,
 }: EditorExtensionsOptions): Extension[] {
   // Submitting must outrank defaultKeymap's own Mod-Enter (insertBlankLine): the save
@@ -145,7 +147,7 @@ export function buildEditorExtensions({
     uploadAnchorField,
     // editorAutocomplete must precede the editing keymap so the completion popup's
     // Enter/Escape/arrow bindings win while it is open.
-    editorAutocomplete({ getTags, searchMemos }),
+    editorAutocomplete({ getTags, getRecentTags, searchMemos }),
     // Formatting keys precede defaultKeymap so the conventional Mod-I italic
     // shortcut wins over CodeMirror's generic selectParentSyntax binding.
     keymap.of([...submitKeys, ...editorKeys, ...formattingKeys, indentWithTab, ...defaultKeymap, ...historyKeymap]),

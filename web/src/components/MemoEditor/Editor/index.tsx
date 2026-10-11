@@ -4,6 +4,7 @@ import { forwardRef, useCallback, useImperativeHandle, useLayoutEffect, useMemo,
 import { useTagCounts } from "@/hooks/useUserQueries";
 import { cn } from "@/lib/utils";
 import { useMemoReferenceSearch } from "../hooks/useMemoReferenceSearch";
+import { useRecentTags } from "../hooks/useRecentTags";
 import type { EditorController } from "../types/editorController";
 import { createController } from "./controller";
 import "./editor.css";
@@ -56,6 +57,9 @@ const Editor = forwardRef(function Editor(props: EditorProps, ref: React.Forward
   const tags = useMemo(() => Object.keys(tagData ?? {}), [tagData]);
   const tagsRef = useRef(tags);
   tagsRef.current = tags;
+  const recentTags = useRecentTags();
+  const recentTagsRef = useRef(recentTags);
+  recentTagsRef.current = recentTags;
   const searchMemos = useMemoReferenceSearch();
   const searchMemosRef = useRef(searchMemos);
   searchMemosRef.current = searchMemos;
@@ -89,6 +93,7 @@ const Editor = forwardRef(function Editor(props: EditorProps, ref: React.Forward
           onUpdate: () => listenersRef.current.forEach((l) => l()),
           onSubmit: () => onSubmitRef.current(),
           getTags: () => tagsRef.current,
+          getRecentTags: () => recentTagsRef.current,
           searchMemos: (query) => searchMemosRef.current(query),
         }),
       }),

@@ -5,6 +5,8 @@ import { makeTagCompletionSource } from "./tagAutocomplete";
 
 export interface EditorCompletionOptions {
   getTags: () => string[];
+  /** Tags from most to least recently used; a bare `#` offers the first few. */
+  getRecentTags?: () => string[];
   searchMemos: MemoReferenceSearch;
 }
 
@@ -13,9 +15,9 @@ export interface EditorCompletionOptions {
  * tags and `@` for memo references. They must share it — CodeMirror's `override`
  * replaces the source list, so a second instance would silence the first.
  */
-export function editorAutocomplete({ getTags, searchMemos }: EditorCompletionOptions): Extension {
+export function editorAutocomplete({ getTags, getRecentTags, searchMemos }: EditorCompletionOptions): Extension {
   return autocompletion({
-    override: [makeTagCompletionSource(getTags), makeMemoCompletionSource(searchMemos)],
+    override: [makeTagCompletionSource(getTags, getRecentTags), makeMemoCompletionSource(searchMemos)],
     icons: false,
   });
 }

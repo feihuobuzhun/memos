@@ -19,7 +19,14 @@ const matchRank = (tag: string, typed: string): number | undefined => {
   return 2; // Anywhere else.
 };
 
-export function makeTagCompletionSource(getTags: () => string[]) {
+/** How many recently used tags a bare `#` offers. */
+export const RECENT_TAG_LIMIT = 5;
+
+/**
+ * `getRecentTags` lists tags from most to least recently used. When it knows any
+ * tag, a bare `#` offers only the first few instead of the whole vocabulary.
+ */
+export function makeTagCompletionSource(getTags: () => string[], getRecentTags?: () => string[]) {
   return (ctx: CompletionContext): CompletionResult | null => {
     // Completion is an input aid, including inside code, links, and escapes.
     // Keep tag spelling rules, but don't restrict candidates to rendered tags.
@@ -37,12 +44,26 @@ export function makeTagCompletionSource(getTags: () => string[]) {
       const node = tree.resolveInner(from - 1, 1);
       // Only the opening heading marker is reserved. A later # in heading
       // text still offers tags, including a potential closing heading marker.
-      if (node.name === "HeaderMark" && node.parent?.firstChild?.from === node.from) return null;
+      if (node.name === "HeaderMark" && node.parent?.firstChild?.from === node.from) {
+        // A lone `#` that ends the line is still ambiguous: it may be the start
+        // of a tag. Offer recent tags; typing a space (a heading) closes the
+        // popup. `##` and deeper can only be headings.
+        const isLoneHashAtLineEnd = node.to - node.from === 1 && ctx.pos === node.to && ctx.pos === line.to;
+        if (!isLoneHashAtLineEnd) return null;
+      }
     }
 
     // A trailing slash is an unfinished child segment, not the end of input.
     const typed = (match ? match.value + (match.to < position ? "/" : "") : "").toLowerCase();
-    const options = getTags()
+    const known = getTags();
+    if (typed === "" && getRecentTags) {
+      const knownSet = new Set(known);
+      const recent = getRecentTags()
+        .filter((tag) => knownSet.has(tag))
+        .slice(0, RECENT_TAG_LIMIT);
+      if (recent.length > 0) return { from, options: recent.map((tag) => ({ label: tag, type: "keyword" })), filter: false };
+    }
+    const options = known
       .map((tag) => ({ tag, rank: matchRank(tag.toLowerCase(), typed) }))
       .filter((candidate): candidate is { tag: string; rank: number } => candidate.rank !== undefined)
       // Stable sort, so tags keep their incoming order within a tier.
