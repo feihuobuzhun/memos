@@ -82,6 +82,9 @@
   },
   "diary": {
     "title": "日记",
+    "entry-date": "记录日期",
+    "previous-day": "前一天",
+    "next-day": "后一天",
     "selected-tags": "带有 {{tags}} 标签的记录",
     "editor-placeholder": "今天过得怎么样？",
     "empty": "还没有日记。带上日记标签的记录都会出现在这里。",
